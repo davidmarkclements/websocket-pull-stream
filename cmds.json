@@ -1,0 +1,7 @@
+{
+  "READ": "read",
+  "FLOW": "flow",
+  "PAUSE": "pause",
+  "RESUME": "resume",
+  "END": "end"
+}
