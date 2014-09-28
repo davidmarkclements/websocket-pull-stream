@@ -23,7 +23,7 @@ By using pull-streams we save over 20kb.
   * Lower file size for the browser (see File Size)
 
 # Disadvantages
-  * Currently only one way (server->client)
+  * Currently only one-way (server->client)
   * Binary data needs to be addressed
 
 
