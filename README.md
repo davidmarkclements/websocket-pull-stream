@@ -6,7 +6,7 @@ Wrap websockets with pull streams for lighter streams in the browser
 Node streams in the browser come at a cost, it's somewhat paradoxical
 so expend high resource for a resource management abstraction. 
 
-```
+```sh
 $ echo "var stream = require('stream')" | browserify | gzip | wc -c
   25643
 
@@ -42,7 +42,7 @@ data interference).
 
 In the browser:
 
-```
+```javascript
 var wsps = require('websocket-pull-stream')
 var ws = new WebSocket('ws://localhost:8081')
 var src = wsps(ws); // pull stream Source (readable stream)
@@ -50,7 +50,7 @@ var src = wsps(ws); // pull stream Source (readable stream)
 
 On the server: 
 
-```
+```javascript
 var WebSocketServer = require('ws').Server;
 var wss = new WebSocketServer({port: 8081, origin: '*'})
 var wsps = require('websocket-pull-stream')
@@ -68,7 +68,7 @@ wss.on('connection', function(ws) {
 # Example
 
 Client
-```
+```javascript
 var pull = require('pull-stream')
 var wsps = require('websocket-pull-stream')
 var ws = new WebSocket('ws://localhost:8081')
@@ -88,7 +88,7 @@ src().pipe(sink());
 ```
 
 Server
-```
+```javascript
 var WebSocketServer = require('ws').Server;
 var wss = new WebSocketServer({port: 8081, origin: '*'})
 var wsps = require('websocket-pull-stream')
