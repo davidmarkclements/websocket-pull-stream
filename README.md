@@ -28,10 +28,8 @@ By using pull-streams we save over 20kb.
 
 
 # How
-Wraps the browser websocket API with a Source pull stream (a readers stream),
-and a server websocket with Sink pull stream (a readable stream). Client->server
-communications are used for a kind of minimal RPC, to control the server->client
-stream. 
+Adds an `onmessage` callback to a websocket and wraps a Source pull stream (a readers stream), around it. 
+Client->server communications are used for a kind of minimal RPC, to control the server->client stream. An `onmessage` event waits for control messages and responds by sending data to the client websocket, this gets wrapped with a Sink pull stream (a readable stream).
 
 
 # Usage
