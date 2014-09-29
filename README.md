@@ -70,7 +70,7 @@ what's used would be useful.
 
 # Example
 
-Client
+## Client
 ```javascript
 var pull = require('pull-stream')
 var wsPull = require('websocket-pull-stream')
@@ -90,7 +90,7 @@ src().pipe(sink());
 
 ```
 
-Server
+## Server
 ```javascript
 var WebSocketServer = require('ws').Server;
 var wss = new WebSocketServer({port: 8081, origin: '*'})
@@ -109,6 +109,7 @@ wss.on('connection', function(ws) {
 	source().pipe(sink())
 
 });
+```
 
 # Flow mode
 
