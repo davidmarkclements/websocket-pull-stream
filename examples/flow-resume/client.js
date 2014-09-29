@@ -1,5 +1,5 @@
 var pull = require('pull-stream')
-var wsps = require('../../index.js')
+var wsPull = require('../../index.js')
 var ws = new WebSocket('ws://localhost:8081')
 
 var src = wsps(ws, 'flow');
@@ -13,9 +13,9 @@ var sink = pull.Sink(function (read) {
     d += data;
     if (d.length > 10000) { 
       console.log(d); d = ''
-      ws.send('pause')
+      read.pause();
       setTimeout(function () {
-        ws.send('resume');
+        read.resume();
       }, 2000);
     }
   })

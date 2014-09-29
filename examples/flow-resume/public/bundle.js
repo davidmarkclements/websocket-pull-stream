@@ -22,9 +22,9 @@ var sink = pull.Sink(function (read) {
     d += data;
     if (d.length > 10000) { 
       console.log(d); d = ''
-      ws.send('pause')
+      read.pause();
       setTimeout(function () {
-        ws.send('resume');
+        read.resume();
       }, 2000);
     }
   })

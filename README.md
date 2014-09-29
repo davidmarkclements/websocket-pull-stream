@@ -19,7 +19,7 @@ By using pull-streams we save over 20kb.
 
 # Advantages
   * Implicit backpressure in the entire pipeline (from server to client)
-  * Explicit backpressure in flow mode
+  * Explicit backpressure in flow mode (
   * Lower file size for the browser (see File Size)
 
 # Disadvantages
@@ -36,25 +36,23 @@ stream.
 
 # Usage
 
-In the browser:
+## In the browser
 
 ```javascript
-var wsps = require('websocket-pull-stream')
+var wsPull = require('websocket-pull-stream')
 var ws = new WebSocket('ws://localhost:8081')
-var src = wsps(ws); // pull stream Source (readable stream)
+var src = wsPull(ws); // pull stream Source (readable stream)
 ```
 
-On the server: 
+## On the server
 
 ```javascript
 var WebSocketServer = require('ws').Server;
 var wss = new WebSocketServer({port: 8081, origin: '*'})
-var wsps = require('websocket-pull-stream')
+var wsPull = require('websocket-pull-stream')
 
 wss.on('connection', function(ws) {
-
-	var sink = wsps(ws); // pull stream Sink (reader stream)
-
+	var sink = wsPull(ws); // pull stream Sink (reader stream)
 })
 ```
 
@@ -77,10 +75,10 @@ what's used would be useful.
 Client
 ```javascript
 var pull = require('pull-stream')
-var wsps = require('websocket-pull-stream')
+var wsPull = require('websocket-pull-stream')
 var ws = new WebSocket('ws://localhost:8081')
 
-var src = wsps(ws);
+var src = wsPull(ws);
 
 var sink = pull.Sink(function (read) {
   read(null, function next (end, data) {
@@ -98,7 +96,7 @@ Server
 ```javascript
 var WebSocketServer = require('ws').Server;
 var wss = new WebSocketServer({port: 8081, origin: '*'})
-var wsps = require('websocket-pull-stream')
+var wsPull = require('websocket-pull-stream')
 
 wss.on('connection', function(ws) {
 	var source = require('pull-stream').Source(function () {
@@ -108,13 +106,66 @@ wss.on('connection', function(ws) {
 	  }
 	})
 
-	var sink = wsps(ws);
+	var sink = wsPull(ws);
 
 	source().pipe(sink())
 
 });
 
+# Flow mode
+
+The second parameter to `wsPull` accepts a string, that describes
+the streaming mode. Options are `'pull'` (default) or `'flow'`.
+
+In the default pull mode each chunk is requested of the server 
+via the transport, flow mode amortizes this expense by requesting 
+only once to trigger iterating server push.
+
+## Manual back pressure
+
+Pull streams deliver implicit back pressure by design (e.g. if
+you don't want it don't ask for it).
+However flow mode flips the paradigm back to a kind of push, meaning we 
+have to handle backpressure manually (as with Node-style streams).
+
+Backpressure can be handled using the `pause` and `resume` 
+methods, as with Node streams.
+
+## Initiate flow mode (browser side):
+
+```javascript
+var pull = require('pull-stream')
+var wsPull = require('../../index.js')
+var ws = new WebSocket('ws://localhost:8081')
+
+var src = wsps(ws, 'flow');
+
+var d = '';
+
+var sink = pull.Sink(function (read) {
+  var i = 0;
+  read(null, function next (end, data) {
+    if (end) { return }
+    d += data;
+    if (d.length > 10000) { 
+      console.log(d); 
+      d = '';
+      read.pause();
+      setTimeout(function () {
+        read.resume();
+      }, 2000);
+    }
+  })
+})
+
+src().pipe(sink());
 ```
+
+Remember `pause` or `resume` methods don't normally exist on pull-streams,
+neither does `'flow'` mode. The `'flow'` has been added for optimal 
+transport communication, and the backpressure methods are included as a 
+neccessity of push stream constructs.
+
 
 ## Let me explain
 When we attempt to combine WebSockets with a 
