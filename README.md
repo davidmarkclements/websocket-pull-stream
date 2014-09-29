@@ -19,7 +19,7 @@ By using pull-streams we save over 20kb.
 
 # Advantages
   * Implicit backpressure in the entire pipeline (from server to client)
-  * Lower file size for the browser (see File Size)
+  * Lower file size for the browser (see [File Size](#file-size))
   * Flow mode option with explicit backpressure for optimal transport traffic
 
 # Disadvantages
