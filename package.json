@@ -13,5 +13,8 @@
   },
   "browser": {
     "./index.js": "./index-browser.js"
+  },
+  "devDependencies": {
+    "ws": "^0.4.32"
   }
 }

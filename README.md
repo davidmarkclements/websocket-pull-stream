@@ -4,7 +4,7 @@ Wrap websockets with [pull streams][pull-stream] for lighter streams in the brow
 
 # File size
 Node streams in the browser come at a cost, it's somewhat paradoxical
-so expend high resource for a resource management abstraction. 
+to expend high resource for a resource management abstraction. 
 
 ```sh
 $ echo "var stream = require('stream')" | browserify | gzip | wc -c
@@ -29,14 +29,10 @@ By using pull-streams we save over 20kb.
 
 # How
 Wraps the browser websocket API with a Source pull stream (a readers stream),
-and a server websocket with Sink pull stream (a readable stream). Client-server
+and a server websocket with Sink pull stream (a readable stream). Client->server
 communications are used for a kind of minimal RPC, to control the server->client
 stream. 
 
-# Future
-The next milestone is to make the abstraction two way by introducing
-multiplexing (so that commands can be embedded in the stream without raw
-data interference).
 
 # Usage
 
@@ -57,13 +53,24 @@ var wsps = require('websocket-pull-stream')
 
 wss.on('connection', function(ws) {
 
-
 	var sink = wsps(ws); // pull stream Sink (reader stream)
 
 })
 ```
 
+# Future
+The next milestone is to make the abstraction two way by introducing
+multiplexing (so that commands can be embedded in the stream without raw
+data interference).
 
+Multiplexing (channel embedding) should also open up useful ways to stream
+to multiple UI sinks with one transport.
+
+It's also possible to shave further weight from the browser implementation
+by only using the parts of pull-stream we need, and stripping out the rest
+(or making the rest optionally inclusive). Introducing a code analysis
+tool that creates a production build of pull-stream that contains only
+what's used would be useful.
 
 # Example
 
@@ -108,13 +115,6 @@ wss.on('connection', function(ws) {
 });
 
 ```
-
-
-
-It's also possible to shave further weight from the browser implementation
-by only using the parts of pull-stream we need, and stripping out the rest
-(or making the rest optionally inclusive).
-
 
 ## Let me explain
 When we attempt to combine WebSockets with a 
