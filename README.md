@@ -120,9 +120,9 @@ In the default pull mode each chunk is requested of the server
 via the transport, flow mode amortizes this expense by requesting 
 only once to trigger iterating server push.
 
-## Manual back pressure
+## Manual backpressure
 
-Pull streams deliver implicit back pressure by design (e.g. if
+Pull streams deliver implicit backpressure by design (e.g. if
 you don't want it don't ask for it).
 However flow mode flips the paradigm back to a kind of push, meaning we 
 have to handle backpressure manually (as with Node-style streams).
@@ -209,7 +209,7 @@ So websocket-pull-stream also introduces the concept of a flow-stream
 (like the "flowing mode" of Node streams v2). The flow approach makes an initial
 pull on the source stream and then transport continues to push
 to the client. Along with this come the familiar Node streams
-API of pause and resume, to enable back pressure management. 
+API of pause and resume, to enable backpressure management. 
 
 
 # Credits
@@ -218,7 +218,7 @@ With thanks to
 
 * Dominic Tarr - [pull-stream][]
 * Max Ogden - [websocket-stream][]
-
+* Raynos
 
 
 [pull-stream]: https://github.com/dominictarr/pull-stream
