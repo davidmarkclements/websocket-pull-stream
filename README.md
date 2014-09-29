@@ -42,6 +42,12 @@ var ws = new WebSocket('ws://localhost:8081')
 var src = wsPull(ws); // pull stream Source (readable stream)
 ```
 
+Our client side code can be packaged with browserify,
+
+```sh
+browserify ourcode.js > bundle.js
+```
+
 ## On the server
 
 ```javascript
