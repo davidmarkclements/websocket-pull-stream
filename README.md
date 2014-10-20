@@ -1,6 +1,6 @@
 # WebSocket Pull Stream
 
-Wrap websockets with [pull streams][pull-stream] for lighter streams in the browser
+Wrap websockets with pull streams for lighter streams in the browser
 
 # File size
 Node streams in the browser come at a cost, it's somewhat paradoxical
