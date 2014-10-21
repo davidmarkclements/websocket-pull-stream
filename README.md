@@ -277,10 +277,10 @@ src.resume() => void
 srcStream.resume() => void
 ```
 
-Whilst available in both flow and pull modes, 
-the pause and resume methods are only really
+Whilst available in both `'flow'` and `'pull'` modes, 
+the `pause` and `resume` methods are only really
 relevant to flow mode. When using pull streams, 
-each chunk is explicitly requested, so websocket-pull-stream
+each chunk is explicitly requested, so `websocket-pull-stream`
 explicitly sends data accross the socket to the server
 requesting the next chunk. Since this is a somewhat
 arduous approach, we have the flow mode option which
