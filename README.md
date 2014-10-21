@@ -36,7 +36,7 @@ Changes between v1.0 and v1.1
 
   * Drasticially reduced the client-side file size 
     * 20kb down to 4.5kb
-    * 4kb down to 1.5kb minified and gzipped
+    * 4kb down to 1.47kb minified and gzipped
   * Simplified API
     * On the client
       * Additional `Funnel` method on a `websocket-pull-stream` wrapped socket
@@ -63,7 +63,7 @@ Node streams in the browser come at a cost, it's somewhat paradoxical
 to expend high resource for a resource management abstraction.
 
 ## Summary
-`websocket-pull-stream` is 1.2kb when gzipped and minified.
+`websocket-pull-stream` is 1.47kb when gzipped and minified.
 
 By using `websocket-pull-stream` we can save 196.9kb, or 24kb when gzipped and minified.
 
