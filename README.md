@@ -428,7 +428,7 @@ to the client. Along with this come the familiar Node streams
 API of pause and resume, to enable backpressure management. 
 
 
-# Credits
+# Gratitude
 
 With thanks to
 
