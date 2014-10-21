@@ -314,27 +314,22 @@ methods, as with Node streams.
 ## Initiate flow mode (browser side):
 
 ```javascript
-var wsps = require('../../index.js')
+var wsps = require('../../../index.js')
 var ws = new WebSocket('ws://localhost:8081')
 
 var src = wsps(ws, 'flow');
 
-var d = '';
+var d = ''
 
-var sink = wsps.Sink(function (read) {
-  var i = 0;
-  read(null, function next (end, data) {
-    if (end) { return }
-    d += data;
-    if (d.length > 10000) { 
-      console.log(d); 
-      d = '';
-      read.pause();
-      setTimeout(function () {
-        read.resume();
-      }, 2000);
-    }
-  })
+var sink = src.Funnel(function (data) {
+  d += data;
+  if (d.length > 10000) { 
+    console.log(d); d = ''
+    src.pause()
+    setTimeout(function () {
+      src.resume()
+    }, 2000);
+  }
 })
 
 src().pipe(sink());
@@ -351,11 +346,6 @@ multiplexing (so that commands can be embedded in the stream without raw data in
 
 Multiplexing (channel embedding) should also open up useful ways to stream to multiple UI sinks with one transport.
 
-It's also possible to shave further weight from the browser implementation
-by only using the parts of pull-stream we need, and stripping out the rest
-(or making the rest optionally inclusive). Introducing a code analysis
-tool that creates a production build of pull-stream that contains only
-what's used would be useful.
 
 ## In Depth Explanation
 When we attempt to combine WebSockets with a 
