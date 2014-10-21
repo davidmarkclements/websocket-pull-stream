@@ -192,7 +192,7 @@ sinks (i.e. write streams).
 #### Funnel Example
 
 ```javascript
-var wsps = require('../../index.js')
+var wsps = require('websocket-pull-stream')
 var ws = new WebSocket('ws://localhost:8081')
 var src = wsps(ws);
 
@@ -206,8 +206,8 @@ src().pipe(sink());
 The above could be created with the more advanced
 `wsps.Sink` stream factory (as inherited from `pull-stream`)
 
-```
-var wsps = require('../../index.js')
+```javascript
+var wsps = require('websocket-pull-stream')
 var ws = new WebSocket('ws://localhost:8081')
 
 var src = wsps(ws);
