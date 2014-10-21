@@ -7,7 +7,16 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "keywords": [
+    "websocket",
+    "websockets",
+    "stream",
+    "streams",
+    "realtime",
+    "pull-stream",
+    "pull"
+  ],
+  "author": "David Mark Clements",
   "license": "ISC",
   "dependencies": {
     "pull-stream": "^2.25.0"
