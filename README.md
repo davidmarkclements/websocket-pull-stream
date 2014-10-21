@@ -1,6 +1,6 @@
 # WebSocket Pull Stream
 
-Wrap websockets with pull streams for lighter streams in the browser
+Wrap websockets with pull streams, over 3000% times less brower code than `websocket-stream`
 
 # Quick Example
 
