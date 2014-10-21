@@ -135,6 +135,27 @@ wsps(ws:WebSocket) => Function: Sink Factory (sink)
 sink() => Object: Sink  (sinkStream)
 ```
 
+We interact with the sinkStream by piping to it
+(there is no `write` method, all we do is `pipe`)
+
+```
+pullStream.pipe(sinkStream)
+nodeStream.pipe(sinkStream)
+```
+
+Notice we can pipe a Node core stream to a 
+websocket-pull-stream. This is not the norm,
+Node Streams and Pull Streams are not fully
+compatible, usually you have to convert a 
+Node Stream to a pull stream with the 
+`stream-to-pull-stream` module. However, 
+`websocket-pull-stream` detects when a 
+Node stream is attempting to pipe it to it, 
+and makes this conversion internally. 
+
+
+
+
 ### Tunnel
 
 ```
@@ -178,6 +199,20 @@ more details.
 ```javascript
 src() => Object: Source  (srcStream)
 ```
+
+Just like Node streams, readable pull streams 
+have a pipe method. 
+
+```
+srcStream.pipe(pullStream:Through|Sink) => pullStream
+```
+
+In fact, this is the *only* way we should interact
+with pull streams, via the `pipe` method. There is no
+`emit` or `on` methods, so no `'data'` events. 
+Nor is there are read method. 
+We just `pipe`. That's it. There is power in simplicity.
+
 
 ### Funnel
 
