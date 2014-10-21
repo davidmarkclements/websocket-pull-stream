@@ -19,7 +19,9 @@
   "author": "David Mark Clements",
   "license": "ISC",
   "dependencies": {
-    "pull-stream": "^2.25.0"
+    "pull-core": "^1.0.0",
+    "pull-stream": "^2.26.0",
+    "stream-to-pull-stream": "^1.6.0"
   },
   "browser": {
     "./index.js": "./index-browser.js"
