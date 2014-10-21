@@ -2,89 +2,217 @@
 
 Wrap websockets with pull streams for lighter streams in the browser
 
-# File size
-Node streams in the browser come at a cost, it's somewhat paradoxical
-to expend high resource for a resource management abstraction. 
+# Quick Example
 
-```sh
-$ echo "var stream = require('stream')" | browserify | gzip | wc -c
-  25643
+## Browser:
 
-$ npm i pull-stream
-$ echo "var stream = require('pull-stream')" | browserify | gzip | wc -c
-  4889
+```javascript
+var wsps = require('websocket-pull-stream')
+var ws = new WebSocket('ws://localhost:8081')
+var src = wsps(ws);
+var sink = src.Funnel(console.log.bind(console))
+
+src().pipe(sink());
 ```
 
-By using pull-streams we save over 20kb.
+## Server
 
-# Advantages
+```
+var WebSocketServer = require('ws').Server;
+var wss = new WebSocketServer({port: 8081, origin: '*'})
+var wsps = require('websocket-pull-stream')
+var fs = require('fs')
+
+wss.on('connection', function(ws) {
+  var sink = wsps(ws);
+  fs.createReadStream('server.js').pipe(sink())
+});
+```
+
+
+
+# Updates
+Changes between v1.0 and v1.1
+
+  * Drasticially reduced the client-side file size 
+    * 20kb down to 4.5kb
+    * 4kb down to 1.5kb minified and gzipped
+  * Simplified API
+    * On the client
+      * Additional `Funnel` method on a `websocket-pull-stream` wrapped socket
+          * Straightforward way to create `pull-stream` Sink 
+    * On the server
+      * Seamless compatibility with Node-streams
+      * Simply `pipe` from a Node stream into a websocket-pull-stream and everything Just Works.
+    * On both
+      * Addition convenience `Tunnel` that makes through 
+        streams extremely trivial to create.
+  * No need to require `pull-stream` / `pull-core`
+    * `Sink`, `Through`, `Source` can all be accessed through
+      the `websocket-pull-stream` exported object 
+  * Client side uses `pull-core` instead of `pull-stream`
+    * This is why the file size has dropped
+    * It means we don't have the utilities included with
+      `pull-stream` but if we wish to use things like
+      an asynchronous map function in the client, there
+      should be a conscious decision to add it independently.
+    * These utilities are still available on the server
+
+# File size
+Node streams in the browser come at a cost, it's somewhat paradoxical
+to expend high resource for a resource management abstraction.
+
+## Summary
+`websocket-pull-stream` is 1.2kb when gzipped and minified.
+
+By using `websocket-pull-stream` we can save 196.9kb, or 24kb when gzipped and minified.
+
+
+## Discourse
+
+Websocket pull stream addresses this by using a light weight
+stream, called a `pull-stream`.
+
+Let's see how websocket-pull-stream clocks in, then we'll compare
+it to a similar solution using Node core streams 
+
+```sh
+$ npm i websocket-pull-stream
+$ echo "require('websocket-pull-stream')" | browserify | wc -c
+5515
+
+$ echo "require('websocket-pull-stream')" | browserify | uglifyjs | wc -c
+4212
+$ echo "require('websocket-pull-stream')" | browserify | uglifyjs | gzip | wc -c
+1472
+```
+
+(if you wish to run this code you'll need `browserify` and `uglifyjs`)
+
+
+The `websocket-stream` module wraps websockets with Node core streams,
+let's compare this to websocket-pull-stream
+
+```sh
+$ npm i websocket-stream
+$ echo "require('websocket-stream')" | browserify | wc -c
+  201081
+$ echo "require('websocket-stream')" | browserify | uglifyjs | wc -c
+  108459
+$ echo "require('websocket-stream')" | browserify | uglifyjs | gzip | wc -c
+  25384
+```
+
+So `websocket-stream` minifies pretty well, put it's still 25kb
+over the wire, and then consuming a minimum of 108kb in the browser.
+
+# Advantages of `websocket-pull-stream`
   * Implicit backpressure in the entire pipeline (from server to client)
   * Lower file size for the browser (see [File Size](#file-size))
   * Flow mode option with explicit backpressure for optimal transport traffic
 
-# Disadvantages
+# Disadvantages of `websocket-pull-stream`
   * Currently only one-way (server->client)
   * Binary data needs to be addressed
+  * Learning curve (simpler, yet different API for stream creation)
 
 
-# How
-Adds an `onmessage` callback to a websocket and wraps a Source pull stream (a readers stream), around it. 
-Client->server communications are used for a kind of minimal RPC, to control the server->client stream. An `onmessage` event waits for control messages and responds by sending data to the client websocket, this gets wrapped with a Sink pull stream (a readable stream).
 
+# API
 
-# Usage
-
-## In the browser
+The following API assumes we've declared a variable called `wsps`
 
 ```javascript
-var wsPull = require('websocket-pull-stream')
+var wsps = require('websocket-pull-stream')
+```
+
+## Server
+```javascript
+wsps(ws:WebSocket) => Function: Sink Factory (sink)
+```
+
+```javascript
+sink() => Object: Sink  (sinkStream)
+```
+
+### Tunnel
+
+```
+sink.Tunnel(fn:(data, cb?:(mutation)) => mutation?) => Through Factory
+sinkStream.Tunnel(fn:(data, cb?:(mutation)) => mutation?) => Through Factory
+
+```
+
+`Tunnel` provides a quick and easy way to create 
+through streams.
+
+See the browser side API for more info on `Tunnel`
+
+
+### Advanced pull streams
+The following are pull stream creation methods, which
+we inherit from [pull-stream][]. 
+```javascript
+wsps.Source(fn:()=>fn:(end, cb)) => Function: Source Factory
+wsps.Sink(fn:(read:(end, next))) => Function: Sink Factory
+wsps.Through(fn:(read:(end, next))=>fn:(end, cb)) => Function: Through Factory
+```
+
+For many cases the simpler `sink.Tunnel`, `src.Tunnel` and `src.Funnel` stream factories are sufficient.
+
+See [pull-stream][] for more information about these 
+advanced pull streams. Other `pull-stream` utilities
+(such as `map`, `collect`, etc) are also available on the server
+side, via `wsps`.
+
+
+## Browser
+```javascript
+wsps(ws:WebSocket, mode?='pull':String) => Function: Source Factory (src)
+```
+`mode` determines whether the websocket stream will be in
+traditional pull mode or "flow mode". See Flow Mode for
+more details. 
+
+
+```javascript
+src() => Object: Source  (srcStream)
+```
+
+### Funnel
+
+```javascript
+src.Funnel(fn:(data) => end?) => Sink Factory
+srcStream.Funnel(fn:(data) => end?) => Sink Factory
+```
+
+`Funnel` provides a quick and easy way to create 
+sinks (i.e. write streams). 
+
+#### Funnel Example
+
+```javascript
+var wsps = require('../../index.js')
 var ws = new WebSocket('ws://localhost:8081')
-var src = wsPull(ws); // pull stream Source (readable stream)
-```
+var src = wsps(ws);
 
-Our client side code can be packaged with browserify,
-
-```sh
-browserify ourcode.js > bundle.js
-```
-
-## On the server
-
-```javascript
-var WebSocketServer = require('ws').Server;
-var wss = new WebSocketServer({port: 8081, origin: '*'})
-var wsPull = require('websocket-pull-stream')
-
-wss.on('connection', function(ws) {
-	var sink = wsPull(ws); // pull stream Sink (reader stream)
+var sink = src.Funnel(function (data) {
+  console.log(data);
 })
+
+src().pipe(sink());
 ```
 
-# Future
-The next milestone is to make the abstraction two way by introducing
-multiplexing (so that commands can be embedded in the stream without raw
-data interference).
+The above could be created with the more advanced
+`wsps.Sink` stream factory (as inherited from `pull-stream`)
 
-Multiplexing (channel embedding) should also open up useful ways to stream
-to multiple UI sinks with one transport.
-
-It's also possible to shave further weight from the browser implementation
-by only using the parts of pull-stream we need, and stripping out the rest
-(or making the rest optionally inclusive). Introducing a code analysis
-tool that creates a production build of pull-stream that contains only
-what's used would be useful.
-
-# Example
-
-## Client
-```javascript
-var pull = require('pull-stream')
-var wsPull = require('websocket-pull-stream')
+```
+var wsps = require('../../index.js')
 var ws = new WebSocket('ws://localhost:8081')
 
-var src = wsPull(ws);
+var src = wsps(ws);
 
-var sink = pull.Sink(function (read) {
+var sink = wsps.Sink(function (read) {
   read(null, function next (end, data) {
     if (end) { return }
     console.log(data);
@@ -93,33 +221,80 @@ var sink = pull.Sink(function (read) {
 })
 
 src().pipe(sink());
-
 ```
+Evidently, `Funnel` takes away much of the boiler plate
+involved with creating a `Sink` factory. We only need
+use `Sink` when `Funnel` doesn't supply the required 
+flexibility. 
 
-## Server
+
+### Tunnel
+
 ```javascript
-var WebSocketServer = require('ws').Server;
-var wss = new WebSocketServer({port: 8081, origin: '*'})
-var wsPull = require('websocket-pull-stream')
-
-wss.on('connection', function(ws) {
-	var source = require('pull-stream').Source(function () {
-	  return function src(end, cb) {
-	    if (end) { return cb(end); }
-		  cb(null, Math.random());  
-	  }
-	})
-
-	var sink = wsPull(ws);
-
-	source().pipe(sink())
-
-});
+src.Tunnel(fn:(data, cb?:(mutation)) => mutation?) => Through Factory
+srcStream.Tunnel(fn:(data, cb?:(mutation)) => mutation?) => Through Factory
 ```
+
+
+#### Tunnel Example
+
+```javascript
+var wsps = require('websocket-pull-stream')
+var ws = new WebSocket('ws://localhost:8081')
+var src = wsps(ws);
+
+var sink = src.Funnel(function (data) {
+  console.log('final', data);
+})
+
+var throughA = src.Tunnel(function (data) {
+  console.debug('initial', data)
+  return data * 100;
+})
+
+var throughB = src.Tunnel(function (data) {
+  console.info('intermediate', data)
+})
+
+var throughC = src.Tunnel(function (data, cb) {
+  cb(data / 2)
+})
+
+src()
+  .pipe(throughA())
+  .pipe(throughB())
+  .pipe(throughC())
+  .pipe(sink());
+```
+
+### Pause & Resume
+
+```
+src.pause() => void
+srcStream.pause => void
+
+src.resume() => void
+srcStream.resume() => void
+```
+
+Whilst available in both flow and pull modes, 
+the pause and resume methods are only really
+relevant to flow mode. When using pull streams, 
+each chunk is explicitly requested, so websocket-pull-stream
+explicitly sends data accross the socket to the server
+requesting the next chunk. Since this is a somewhat
+arduous approach, we have the flow mode option which
+asks the server to keep sending data after the first
+request. However, this puts us back into a position
+of manually handling back pressure - that's where 
+`pause` and `resume` come in, these methods are conceptually
+equivalent to the `pause` and `resume` methods on Node 
+core streams. See Flow Mode for more details. 
+
 
 # Flow mode
 
-The second parameter to `wsPull` accepts a string, that describes
+The second parameter to `wsps` accepts a string, that describes
 the streaming mode. Options are `'pull'` (default) or `'flow'`.
 
 In the default pull mode each chunk is requested of the server 
@@ -139,15 +314,14 @@ methods, as with Node streams.
 ## Initiate flow mode (browser side):
 
 ```javascript
-var pull = require('pull-stream')
-var wsPull = require('../../index.js')
+var wsps = require('../../index.js')
 var ws = new WebSocket('ws://localhost:8081')
 
-var src = wsPull(ws, 'flow');
+var src = wsps(ws, 'flow');
 
 var d = '';
 
-var sink = pull.Sink(function (read) {
+var sink = wsps.Sink(function (read) {
   var i = 0;
   read(null, function next (end, data) {
     if (end) { return }
@@ -168,11 +342,22 @@ src().pipe(sink());
 
 Remember `pause` or `resume` methods don't normally exist on pull-streams,
 neither does `'flow'` mode. The `'flow'` has been added for optimal 
-transport communication, and the backpressure methods are included as a 
-neccessity of push stream constructs.
+transport communication, and the backpressure methods are included as a neccessity of push stream constructs.
 
 
-## Let me explain
+# Future
+The next milestone is to make the abstraction two way by introducing
+multiplexing (so that commands can be embedded in the stream without raw data interference).
+
+Multiplexing (channel embedding) should also open up useful ways to stream to multiple UI sinks with one transport.
+
+It's also possible to shave further weight from the browser implementation
+by only using the parts of pull-stream we need, and stripping out the rest
+(or making the rest optionally inclusive). Introducing a code analysis
+tool that creates a production build of pull-stream that contains only
+what's used would be useful.
+
+## In Depth Explanation
 When we attempt to combine WebSockets with a 
 time-based abstraction of a collection (e.g. streams)
 we lack the appropriate control in the browser to 
