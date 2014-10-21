@@ -6,7 +6,12 @@ wss.on('connection', function(ws) {
 	var source = wsps.Source(function () {
 	  return function src(end, cb) {
 	    if (end) { return cb(end); }
-		  cb(null, Math.random());  
+	    //slow things down so we can see things
+	    //coming through the tunnel
+	      setTimeout(function () {
+	      	cb(null, Math.random());  	
+	      }, 2000)
+		  
 	  }
 	})
 

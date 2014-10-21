@@ -9,6 +9,7 @@ module.exports={
 },{}],2:[function(require,module,exports){
 var wsps = require('../../index.js')
 var ws = new WebSocket('ws://localhost:8081')
+
 var src = wsps(ws);
 
 var sink = src.Funnel(function (data) {
@@ -16,8 +17,6 @@ var sink = src.Funnel(function (data) {
 })
 
 src().pipe(sink());
-
-
 },{"../../index.js":3}],3:[function(require,module,exports){
 var pull = require('pull-core')
 var cmd = require('./cmds.json')

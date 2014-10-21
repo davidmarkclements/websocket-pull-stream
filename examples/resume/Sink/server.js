@@ -1,6 +1,6 @@
 var WebSocketServer = require('ws').Server;
 var wss = new WebSocketServer({port: 8081, origin: '*'})
-var wsps = require('../../index.js')
+var wsps = require('../../../index.js')
 
 wss.on('connection', function(ws) {
 	var source = wsps.Source(function () {

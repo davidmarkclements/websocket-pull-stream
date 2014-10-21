@@ -10,14 +10,9 @@ module.exports={
 var wsps = require('../../index.js')
 var ws = new WebSocket('ws://localhost:8081')
 var src = wsps(ws);
-
-var sink = src.Funnel(function (data) {
-	console.log(data);
-})
+var sink = src.Funnel(console.log.bind(console))
 
 src().pipe(sink());
-
-
 },{"../../index.js":3}],3:[function(require,module,exports){
 var pull = require('pull-core')
 var cmd = require('./cmds.json')
@@ -34,9 +29,6 @@ function webSocketPullStream (socket, mode) {
       socket.onopen = function () { sendCmd(c || cmd[mode]) } :
       socket.send(c || cmd[mode]); 
   }
-
-  function pause() { sendCmd(cmd.PAUSE); }
-  function resume() { sendCmd(cmd.RESUME); }
   
   if (!cmd[mode = (mode || PULL).toUpperCase()]) { 
     throw Error('Mode ' + mode + ' not supported');
@@ -54,17 +46,15 @@ function webSocketPullStream (socket, mode) {
           cb(end, evt.data); 
         }
     }
-    stream.pause = pause;
-    stream.resume = resume;
+    stream.pause = function () { sendCmd(cmd.PAUSE); }
+    stream.resume = function () { sendCmd(cmd.RESUME); }
     stream.socket = socket;
     return stream;
   })
   
-  source.pause = pause;
-  source.resume = resume;
-  source.socket = socket;
+  src.socket = socket;
 
-  source.Funnel = function (fn) {
+  src.Funnel = function (fn) {
     return pull.Sink(function (read) {
       read(null, pullMode ? function next(end, data) {
         continuation(end, data);
@@ -73,7 +63,7 @@ function webSocketPullStream (socket, mode) {
     })
   }
 
-  source.Tunnel = function (fn) {
+  src.Tunnel = function (fn, abort) {
     return pull.Through(function (read) {
       return function (end, cb) {
         read(null, function (end, data) {
@@ -98,17 +88,7 @@ function webSocketPullStream (socket, mode) {
     }
   }
 
- function source () {
-    var s = src();
-    s.pause = pause;
-    s.resume = resume;
-    s.socket = socket;
-    s.Funnel = source.Funnel;
-    s.Tunnel = source.Tunnel;
-    return s;
-  }
-
-  return source;
+  return src;
 
 }
 },{"./cmds.json":1,"pull-core":4}],4:[function(require,module,exports){

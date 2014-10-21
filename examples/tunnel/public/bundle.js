@@ -12,10 +12,27 @@ var ws = new WebSocket('ws://localhost:8081')
 var src = wsps(ws);
 
 var sink = src.Funnel(function (data) {
-	console.log(data);
+	console.log('final', data);
 })
 
-src().pipe(sink());
+var throughA = src.Tunnel(function (data) {
+	console.debug('initial', data)
+	return data * 100;
+})
+
+var throughB = src.Tunnel(function (data) {
+	console.info('intermediate', data)
+})
+
+var throughC = src.Tunnel(function (data, cb) {
+	cb(data / 2)
+})
+
+src()
+  .pipe(throughA())
+  .pipe(throughB())
+  .pipe(throughC())
+  .pipe(sink());
 
 
 },{"../../index.js":3}],3:[function(require,module,exports){
@@ -66,10 +83,9 @@ function webSocketPullStream (socket, mode) {
 
   source.Funnel = function (fn) {
     return pull.Sink(function (read) {
-      read(null, pullMode ? function next(end, data) {
-        continuation(end, data);
-        read(fn(data) || null, next)
-      } : continuation) 
+      read(null, pullMode ? continuation(function (data, next) {
+          read(fn(data) || null, next)
+        }) : continuation(function (data) { fn(data) }))
     })
   }
 
@@ -91,10 +107,14 @@ function webSocketPullStream (socket, mode) {
     })
   }
 
-  function continuation(end, data) {
-    if (end) { 
-      sendCmd(cmd.PAUSE);
-      socket.close();
+  function continuation(fn) {
+    return function next(end, data) {
+      if (end) { 
+        sendCmd(cmd.PAUSE);
+        socket.close();
+        return end;
+      }
+      fn(data, next);
     }
   }
 

@@ -7,18 +7,30 @@ module.exports={
   "END": "end"
 }
 },{}],2:[function(require,module,exports){
-var wsps = require('../../index.js')
+var wsps = require('../../../index.js')
 var ws = new WebSocket('ws://localhost:8081')
-var src = wsps(ws);
 
-var sink = src.Funnel(function (data) {
-	console.log(data);
+var src = wsps(ws, 'flow');
+
+var d = ''
+
+var sink = wsps.Sink(function (read) {
+  read(null, function next (end, data) {
+    if (end) { return }
+    d += data;
+    if (d.length > 10000) { 
+      console.log(d); d = ''
+      read.pause()
+      setTimeout(function () {
+        read.resume()
+      }, 2000);
+    }
+    read(null, next)
+  })
 })
 
 src().pipe(sink());
-
-
-},{"../../index.js":3}],3:[function(require,module,exports){
+},{"../../../index.js":3}],3:[function(require,module,exports){
 var pull = require('pull-core')
 var cmd = require('./cmds.json')
 var PULL = 'PULL';
@@ -66,10 +78,9 @@ function webSocketPullStream (socket, mode) {
 
   source.Funnel = function (fn) {
     return pull.Sink(function (read) {
-      read(null, pullMode ? function next(end, data) {
-        continuation(end, data);
-        read(fn(data) || null, next)
-      } : continuation) 
+      read(null, pullMode ? continuation(function (data, next) {
+          read(fn(data) || null, next)
+        }) : continuation(function (data) { fn(data) }))
     })
   }
 
@@ -91,10 +102,14 @@ function webSocketPullStream (socket, mode) {
     })
   }
 
-  function continuation(end, data) {
-    if (end) { 
-      sendCmd(cmd.PAUSE);
-      socket.close();
+  function continuation(fn) {
+    return function next(end, data) {
+      if (end) { 
+        sendCmd(cmd.PAUSE);
+        socket.close();
+        return end;
+      }
+      fn(data, next);
     }
   }
 
