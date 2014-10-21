@@ -349,7 +349,7 @@ methods, as with Node streams.
 ## Initiate flow mode (browser side):
 
 ```javascript
-var wsps = require('../../../index.js')
+var wsps = require('websocket-pull-stream')
 var ws = new WebSocket('ws://localhost:8081')
 
 var src = wsps(ws, 'flow');
