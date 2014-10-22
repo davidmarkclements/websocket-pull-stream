@@ -7,47 +7,65 @@ module.exports = webSocketPullStream
 module.exports.__proto__ = pull;
 function noop(){}
 function webSocketPullStream (socket) {
+  function queue(msg) {
+    queue.list.push(msg);
+  }
+  queue.list = [];
+  socket.on('message', queue)
   state.was = {};
   state.paused = null;
-	var sink = pull.Sink(function (read) {
-		socket.on('message', function(message) {
-			if (!message.indexOf(cmds)) {return;}
-  		if (state(message).paused) {return;}
-			read(null, function next(end, data) {
-				if (end || !data) {return;}
-				if (message === cmd.END) {
-					read(cmd.END)
-					return;
-				}
-        if (message === cmd.RESUME && state.was.flowing) {
-          state.was.flowing = null;
-          message = cmd.FLOW;
-        } 
-				socket.send(data+'')
-				if (message === cmd.FLOW) {
-          if (state(message).paused) {
-            state.was.flowing = true;
+
+  function processCmd(read) {
+    return function (message) {
+        if (!message.indexOf(cmds)) {return;}
+        if (state(message).paused) {return;}
+        read(null, function next(end, data) {
+          if (end || !data) {return;}
+          if (message === cmd.END) {
+            read(cmd.END)
             return;
           }
-					return setImmediate(read.bind(null, null, next))
-				}
+          if (message === cmd.RESUME && state.was.flowing) {
+            state.was.flowing = null;
+            message = cmd.FLOW;
+          } 
+          socket.send(data+'')
+          if (message === cmd.FLOW) {
+            if (state(message).paused) {
+              state.was.flowing = true;
+              return;
+            }
+            return setImmediate(read.bind(null, null, next))
+          }
 
 
-			})
+        })
 
-		});
+      }
+  }
+
+
+	var sink = pull.Sink(function (read) {
+    socket.removeListener('message', queue);
+    queue.list.forEach(processCmd(read))
+		socket.on('message', processCmd(read));
 	})
 
   function funnel() {
     var s = sink();
-    s.on = s.once = s.write = noop;
+    
+    ;['on', 'once', 'write', 'end', 'removeListener']
+      .forEach(function(k) {
+        s[k] = noop;
+      });
+
     s.emit = function (type, stream) {
       if (type !== 'pipe') {return;}
       stps.source(stream).pipe(s)
     }
     s.Tunnel = Tunnel;
     return s;
-  };
+  }
   
   funnel.Tunnel = Tunnel;
 

@@ -9,6 +9,7 @@ module.exports.__proto__ = pull
 function webSocketPullStream (socket, mode) {
   var src, pullMode;
   function sendCmd(c) { 
+    console.log('sending');
     (socket.readyState !== 1) ? 
       socket.onopen = function () { sendCmd(c || cmd[mode]) } :
       socket.send(c || cmd[mode]); 
