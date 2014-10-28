@@ -38,7 +38,7 @@ to expend high resource for a resource management abstraction.
 ## Summary
 `websocket-pull-stream` is 1.57kb when gzipped and minified.
 
-By using `websocket-pull-stream` we can save 196.9kb, or 24kb when gzipped and minified.
+By using `websocket-pull-stream` we can save ~195kb, or ~24kb when gzipped and minified.
 
 
 ## Discourse
