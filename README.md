@@ -4,7 +4,7 @@ Wrap websockets with pull streams, over 3000% less browser code than `websocket-
 
 # Quick Example
 
-## Browser:
+## Browser
 
 ```javascript
 var wsps = require('websocket-pull-stream')
