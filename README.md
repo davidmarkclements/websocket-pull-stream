@@ -36,7 +36,7 @@ Node streams in the browser come at a cost, it's somewhat paradoxical
 to expend high resource for a resource management abstraction.
 
 ## Summary
-`websocket-pull-stream` is 1.47kb when gzipped and minified.
+`websocket-pull-stream` is 1.57kb when gzipped and minified.
 
 By using `websocket-pull-stream` we can save 196.9kb, or 24kb when gzipped and minified.
 
@@ -52,28 +52,28 @@ it to a similar solution using Node core streams
 ```sh
 $ npm i websocket-pull-stream
 $ echo "require('websocket-pull-stream')" | browserify | wc -c
-5515
+5878
 
 $ echo "require('websocket-pull-stream')" | browserify | uglifyjs | wc -c
-4212
+4490
 $ echo "require('websocket-pull-stream')" | browserify | uglifyjs | gzip | wc -c
-1472
+1578
 ```
 
 (if you wish to run this code you'll need `browserify` and `uglifyjs`)
 
 
 The `websocket-stream` module wraps websockets with Node core streams,
-let's compare this to websocket-pull-stream
+let's compare this to `websocket-pull-stream`
 
 ```sh
 $ npm i websocket-stream
 $ echo "require('websocket-stream')" | browserify | wc -c
-  201081
+  201119
 $ echo "require('websocket-stream')" | browserify | uglifyjs | wc -c
-  108459
+  108492
 $ echo "require('websocket-stream')" | browserify | uglifyjs | gzip | wc -c
-  25384
+  25390
 ```
 
 So `websocket-stream` minifies pretty well, put it's still 25kb
@@ -128,6 +128,20 @@ Node stream is attempting to pipe it to it,
 and makes this conversion internally. 
 
 
+### Connection type
+
+The second parameter of `wsps` is an optional string,
+if set to 'binary' the server will stream binary data
+to the client websocket (which by default will be
+delivered as `DataView` objects corresponding to 
+`ArrayBuffer` objects generated for each chunk).
+
+No configuration has to take place on the client, 
+when the server chooses to send binary data it 
+will be automatically interpretted as such. 
+
+The default behavior is for the server to stream 
+strings. 
 
 
 ### Tunnel
@@ -289,7 +303,6 @@ src()
   .pipe(sink());
 ```
 
-# Connection type (binary or string)
 
 
 
