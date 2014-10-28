@@ -7,9 +7,17 @@ module.exports.source = webSocketPullStream
 module.exports.__proto__ = pull
 
 function webSocketPullStream (socket, mode) {
-  var src, pullMode;
+  var src, pullMode, View = DataView;
+  
+  socket.binaryType = 'arraybuffer';
+
+  if (mode instanceof Object) {
+    socket.binaryType = mode.binaryType || socket.binaryType;
+    View = mode.binaryView || View;
+    mode = mode.mode;
+  }
+
   function sendCmd(c) { 
-    console.log('sending');
     (socket.readyState !== 1) ? 
       socket.onopen = function () { sendCmd(c || cmd[mode]) } :
       socket.send(c || cmd[mode]); 
@@ -17,6 +25,12 @@ function webSocketPullStream (socket, mode) {
 
   function pause() { sendCmd(cmd.PAUSE); }
   function resume() { sendCmd(cmd.RESUME); }
+
+  function wrap(data) {
+    return typeof data === 'string' || socket.binaryType === 'blob' ? 
+      data : 
+      new View(data);
+  }
   
   if (!cmd[mode = (mode || PULL).toUpperCase()]) { 
     throw Error('Mode ' + mode + ' not supported');
@@ -27,11 +41,11 @@ function webSocketPullStream (socket, mode) {
     function stream(end, cb) {
       socket.onmessage = pullMode ? 
         function (evt) {
-          cb(end, evt.data); 
+          cb(end, wrap(evt.data)); 
           sendCmd();
         } : 
         function (evt) { 
-          cb(end, evt.data); 
+          cb(end, wrap(evt.data)); 
         }
     }
     stream.pause = pause;

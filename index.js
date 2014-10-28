@@ -6,7 +6,9 @@ var cmds = Object.keys(cmd).map(function(c) {return cmd[c]; })
 module.exports = webSocketPullStream
 module.exports.__proto__ = pull;
 function noop(){}
-function webSocketPullStream (socket) {
+function webSocketPullStream (socket, binary) {
+  binary = binary === 'binary'
+
   function queue(msg) {
     queue.list.push(msg);
   }
@@ -20,6 +22,12 @@ function webSocketPullStream (socket) {
         if (!message.indexOf(cmds)) {return;}
         if (state(message).paused) {return;}
         read(null, function next(end, data) {
+          data = binary ?
+            !(data instanceof Buffer) ?
+              Buffer(data+'') :
+              data :
+            data + '';
+
           if (end || !data) {return;}
           if (message === cmd.END) {
             read(cmd.END)
@@ -29,7 +37,8 @@ function webSocketPullStream (socket) {
             state.was.flowing = null;
             message = cmd.FLOW;
           } 
-          socket.send(data+'')
+          data = Buffer('abcdefgh')
+          socket.send(data)
           if (message === cmd.FLOW) {
             if (state(message).paused) {
               state.was.flowing = true;

@@ -31,33 +31,6 @@ wss.on('connection', function(ws) {
 
 
 
-# Updates
-Changes between v1.0 and v1.1
-
-  * Drasticially reduced the client-side file size 
-    * 20kb down to 4.5kb
-    * 4kb down to 1.47kb minified and gzipped
-  * Simplified API
-    * On the client
-      * Additional `Funnel` method on a `websocket-pull-stream` wrapped socket
-          * Straightforward way to create `pull-stream` Sink 
-    * On the server
-      * Seamless compatibility with Node-streams
-      * Simply `pipe` from a Node stream into a websocket-pull-stream and everything Just Works.
-    * On both
-      * Addition convenience `Tunnel` that makes through 
-        streams extremely trivial to create.
-  * No need to require `pull-stream` / `pull-core`
-    * `Sink`, `Through`, `Source` can all be accessed through
-      the `websocket-pull-stream` exported object 
-  * Client side uses `pull-core` instead of `pull-stream`
-    * This is why the file size has dropped
-    * It means we don't have the utilities included with
-      `pull-stream` but if we wish to use things like
-      an asynchronous map function in the client, there
-      should be a conscious decision to add it independently.
-    * These utilities are still available on the server
-
 # File size
 Node streams in the browser come at a cost, it's somewhat paradoxical
 to expend high resource for a resource management abstraction.
@@ -113,22 +86,23 @@ over the wire, and then consuming a minimum of 108kb in the browser.
 
 # Disadvantages of `websocket-pull-stream`
   * Currently only one-way (server->client)
-  * Binary data needs to be addressed
   * Learning curve (simpler, yet different API for stream creation)
 
 
 
 # API
 
-The following API assumes we've declared a variable called `wsps`
 
 ```javascript
 var wsps = require('websocket-pull-stream')
 ```
 
 ## Server
+
+The following API assumes we've declared a variable called `wsps`
+
 ```javascript
-wsps(ws:WebSocket) => Function: Sink Factory (sink)
+wsps(ws:WebSocket, [connectionType('binary'|'string')='string':String]) => Function: Sink Factory (sink)
 ```
 
 ```javascript
@@ -167,7 +141,7 @@ sinkStream.Tunnel(fn:(data, cb?:(mutation)) => mutation?) => Through Factory
 `Tunnel` provides a quick and easy way to create 
 through streams.
 
-See the browser side API for more info on `Tunnel`
+See the [pultil][] module for more info on `Tunnel`
 
 
 ### Advanced pull streams
@@ -188,12 +162,48 @@ side, via `wsps`.
 
 
 ## Browser
+
+The following API assumes we've declared a variable called `wsps`
+
 ```javascript
-wsps(ws:WebSocket, mode?='pull':String) => Function: Source Factory (src)
+wsps(ws:WebSocket, [mode('pull'|'flow')='pull':String]) => Function: Source Factory (src)
+wsps(ws:WebSocket, [opts={mode:'pull',binaryType: 'arraybuffer', binaryView: DataView}:Object]) => Function: Source Factory (src)
 ```
 `mode` determines whether the websocket stream will be in
 traditional pull mode or "flow mode". See Flow Mode for
 more details. 
+
+`opts` is an object which can contain `mode`, `binaryType` and `binaryView` properties. 
+
+`binaryType` and `binaryView` are only relevant when the 
+server side stream has been instantiated as a `'binary'`
+stream (see Server api).
+
+Websockets have a `binaryType` value, which can be either 
+`'blob'` or `'arraybuffer'`, we default to `'arraybuffer'`. 
+
+The `binaryView` option determines what view an incoming
+ArrayBuffer is to be wrapped in. If the `binaryType` is 
+a `'blob'` the `binaryView` option is redundant, and ignored.
+
+We default do DataView which allows us to interpret any piece of the buffer in any way, e.g. `data.getUint8(2)`  would give us the Uint8
+value of the 2nd index in the `DataView`.
+
+See the MDN [DataView][] documentation for all the methods available on `DataView`.
+
+Any Typed Array constructor can be passed into `binaryView`,
+instead of `DataView`, see mdn docs on [TypedArrays][] for a full list of Typed Arrays.
+
+We can also pass in custom constructors to wrap each ArrayBuffer
+object, such as Mozilla's experimental [StringView][] snippet.
+
+If we want to get the actual underlying ArrayBuffer object, regardless
+of specified `binaryView` we can fetch it by using the `buffer`
+property on any view object - e.g. `data.buffer`.
+
+Note: Be careful with `Uint8ClampedArray`, it's not supported
+in IE10 - see [canisuse.com - Typed Arrays]. This is also a
+good resource for determining browser binary support.
 
 
 ```javascript
@@ -224,6 +234,8 @@ srcStream.Funnel(fn:(data) => end?) => Sink Factory
 `Funnel` provides a quick and easy way to create 
 sinks (i.e. write streams). 
 
+See the [pultil][] module for more info on `Funnel`.
+
 #### Funnel Example
 
 ```javascript
@@ -238,38 +250,13 @@ var sink = src.Funnel(function (data) {
 src().pipe(sink());
 ```
 
-The above could be created with the more advanced
-`wsps.Sink` stream factory (as inherited from `pull-stream`)
-
-```javascript
-var wsps = require('websocket-pull-stream')
-var ws = new WebSocket('ws://localhost:8081')
-
-var src = wsps(ws);
-
-var sink = wsps.Sink(function (read) {
-  read(null, function next (end, data) {
-    if (end) { return }
-    console.log(data);
-    read(null, next)
-  })
-})
-
-src().pipe(sink());
-```
-Evidently, `Funnel` takes away much of the boiler plate
-involved with creating a `Sink` factory. We only need
-use `Sink` when `Funnel` doesn't supply the required 
-flexibility. 
-
-
 ### Tunnel
 
 ```javascript
 src.Tunnel(fn:(data, cb?:(mutation)) => mutation?) => Through Factory
 srcStream.Tunnel(fn:(data, cb?:(mutation)) => mutation?) => Through Factory
 ```
-
+See the [pultil][] module for more info on `tunnel`.
 
 #### Tunnel Example
 
@@ -301,6 +288,10 @@ src()
   .pipe(throughC())
   .pipe(sink());
 ```
+
+# Connection type (binary or string)
+
+
 
 ### Pause & Resume
 
@@ -439,6 +430,9 @@ With thanks to
 
 [pull-stream]: https://github.com/dominictarr/pull-stream
 [websocket-stream]: https://github.com/maxogden/websocket-stream
-
-
+[pultil]: https://github.com/davidmarkclements/pultil
+[TypedArrays]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays
+[DataView]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
+[canisuse.com - Typed Arrays]: http://caniuse.com/#search=TypedArray
+[StringView]: https://developer.mozilla.org/en-US/Add-ons/Code_snippets/StringView
 
