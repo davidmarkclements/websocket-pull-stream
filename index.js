@@ -37,7 +37,6 @@ function webSocketPullStream (socket, binary) {
             state.was.flowing = null;
             message = cmd.FLOW;
           } 
-          data = Buffer('abcdefgh')
           socket.send(data)
           if (message === cmd.FLOW) {
             if (state(message).paused) {
