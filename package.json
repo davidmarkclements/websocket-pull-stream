@@ -1,6 +1,6 @@
 {
   "name": "websocket-pull-stream",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "",
   "main": "index.js",
   "repository": "https://github.com/davidmarkclements/websocket-pull-stream",
