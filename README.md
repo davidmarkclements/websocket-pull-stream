@@ -105,6 +105,8 @@ The following API assumes we've declared a variable called `wsps`
 wsps(ws:WebSocket, [connectionType('binary'|'string')='string':String]) => Function: Sink Factory (sink)
 ```
 
+### Pull Stream API
+
 ```javascript
 sink() => Object: Sink  (sinkStream)
 ```
@@ -219,6 +221,7 @@ Note: Be careful with `Uint8ClampedArray`, it's not supported
 in IE10 - see [canisuse.com - Typed Arrays]. This is also a
 good resource for determining browser binary support.
 
+### Pull Stream API
 
 ```javascript
 src() => Object: Source  (srcStream)
