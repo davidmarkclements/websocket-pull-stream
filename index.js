@@ -98,9 +98,13 @@ function webSocketPullStream (socket, binary) {
 }
 
 function state(message) {
-  state.paused = (message === cmd.PAUSE) || 
-    (message !== cmd.RESUME);
-  return state
+  if (message === cmd.PAUSE) {
+    state.paused = true;
+  }
+  if (message === cmd.RESUME) {
+    state.paused = false;
+  }
+  return state;
 }
 
 
