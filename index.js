@@ -19,37 +19,36 @@ function webSocketPullStream (socket, binary) {
 
   function processCmd(read) {
     return function (message) {
-        if (!message.indexOf(cmds)) {return;}
-        if (state(message).paused) {return;}
-        read(null, function next(end, data) {
-          data = binary ?
-            !(data instanceof Buffer) ?
-              Buffer(data+'') :
-              data :
-            data + '';
+      if (!message.indexOf(cmds)) {return;}
+      if (state(message).paused) {return;}
+      read(null, function next(end, data) {
+        data = binary ?
+          !(data instanceof Buffer) ?
+            Buffer(data+'') :
+            data :
+          data + '';
 
-          if (end || !data) {return;}
-          if (message === cmd.END) {
-            read(cmd.END)
+        if (end || !data) {return;}
+        if (message === cmd.END) {
+          read(cmd.END)
+          return;
+        }
+        if (message === cmd.RESUME && state.was.flowing) {
+          state.was.flowing = null;
+          message = cmd.FLOW;
+        } 
+        socket.send(data)
+        if (message === cmd.FLOW) {
+          if (state(message).paused) {
+            state.was.flowing = true;
             return;
           }
-          if (message === cmd.RESUME && state.was.flowing) {
-            state.was.flowing = null;
-            message = cmd.FLOW;
-          } 
-          socket.send(data)
-          if (message === cmd.FLOW) {
-            if (state(message).paused) {
-              state.was.flowing = true;
-              return;
-            }
-            return setImmediate(read.bind(null, null, next))
-          }
+          return setImmediate(read.bind(null, null, next))
+        }
 
+      })
 
-        })
-
-      }
+    }
   }
 
 
@@ -99,12 +98,8 @@ function webSocketPullStream (socket, binary) {
 }
 
 function state(message) {
-  if (message === cmd.PAUSE) {
-    state.paused = true;
-  }
-  if (message === cmd.RESUME) {
-    state.paused = false;
-  }
+  state.paused = (message === cmd.PAUSE) || 
+    (message !== cmd.RESUME);
   return state
 }
 

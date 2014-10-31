@@ -95,7 +95,7 @@ function webSocketPullStream (socket, mode) {
     }
   }
 
- function source () {
+  function source () {
     var s = src();
     s.pause = pause;
     s.resume = resume;
