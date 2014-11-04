@@ -1,66 +1,28 @@
-var pull = require('pull-stream')
+var duplex = require('./lib/duplex')
 var stps = require('stream-to-pull-stream')
-var cmd = require('./cmds.json')
-var cmds = Object.keys(cmd).map(function(c) {return cmd[c]; })
-
+var pull = require('pull-core')
+var plex = require('pull-plex')
+var multi = plex()
 module.exports = webSocketPullStream
-module.exports.__proto__ = pull;
+module.exports.__proto__ = require('pull-core');
+module.exports.mux = multi
+
 function noop(){}
 function webSocketPullStream (socket, binary) {
-  binary = binary === 'binary'
-
-  function queue(msg) {
-    queue.list.push(msg);
-  }
-  queue.list = [];
-  socket.on('message', queue)
-  state.was = {};
-  state.paused = null;
-
-  function processCmd(read) {
-    return function (message) {
-      if (!message.indexOf(cmds)) {return;}
-      if (state(message).paused) {return;}
-      read(null, function next(end, data) {
-        data = binary ?
-          !(data instanceof Buffer) ?
-            Buffer(data+'') :
-            data :
-          data + '';
-
-        if (end || !data) {return;}
-        if (message === cmd.END) {
-          read(cmd.END)
-          return;
-        }
-        if (message === cmd.RESUME && state.was.flowing) {
-          state.was.flowing = null;
-          message = cmd.FLOW;
-        } 
-        socket.send(data)
-        if (message === cmd.FLOW) {
-          if (state(message).paused) {
-            state.was.flowing = true;
-            return;
-          }
-          return setImmediate(read.bind(null, null, next))
-        }
-
-      })
-
+  var pullMode;
+  socket.on = socket.on || function (topic, fn) {
+    function cb(e) {
+      fn(e.data || e)
     }
+    fn.cb = cb;
+    socket.addEventListener(topic, cb)
   }
-
-
-	var sink = pull.Sink(function (read) {
-    socket.removeListener('message', queue);
-    queue.list.forEach(processCmd(read))
-		socket.on('message', processCmd(read));
-	})
+  socket.removeListener = socket.removeListener || function (topic, fn) {
+    socket.removeEventListener(topic, fn.cb || fn)
+  }
 
   function funnel() {
-    var s = sink();
-    
+    var s = duplex(socket, binary, multi);    
     ;['on', 'once', 'write', 'end', 'removeListener']
       .forEach(function(k) {
         s[k] = noop;
@@ -70,11 +32,15 @@ function webSocketPullStream (socket, binary) {
       if (type !== 'pipe') {return;}
       stps.source(stream).pipe(s)
     }
+    s.Funnel = Funnel;
     s.Tunnel = Tunnel;
+    s.socket = socket;
     return s;
   }
   
   funnel.Tunnel = Tunnel;
+  funnel.Funnel = Funnel;
+
 
   function Tunnel (fn) {
     return pull.Through(function (read) {
@@ -94,18 +60,24 @@ function webSocketPullStream (socket, binary) {
     })
   }
 
+  function Funnel (fn) {
+    return pull.Sink(function (read) {
+      read(null, pullMode ? continuation(function (data, next) {
+          read(fn(data) || null, next)
+        }) : continuation(function (data) { fn(data) }))
+    })
+  }
+
+  function continuation(fn) {
+    return function next(end, data) {
+      if (end) { 
+        // sendCmd(cmd.PAUSE);
+        socket.close();
+        return end;
+      }
+      fn(data, next);
+    }
+  }
+
   return funnel;
 }
-
-function state(message) {
-  if (message === cmd.PAUSE) {
-    state.paused = true;
-  }
-  if (message === cmd.RESUME) {
-    state.paused = false;
-  }
-  return state;
-}
-
-
-

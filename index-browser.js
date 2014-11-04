@@ -1,14 +1,22 @@
 var pull = require('pull-core')
-var cmd = require('./cmds.json')
-var PULL = 'PULL';
+var plex = require('pull-plex')
+var cmd = require('./cmds.json');
+var multi = plex()
+
+var PULL = 'PULL'
 cmd.PULL = cmd.READ;
+
+Object.keys(cmd).forEach(function (k) {
+  cmd[k] = String.fromCharCode(0) + cmd[k];
+})
+
+
 module.exports = webSocketPullStream
-module.exports.source = webSocketPullStream
 module.exports.__proto__ = pull
 
 function webSocketPullStream (socket, mode) {
   var src, pullMode, View = DataView;
-  
+
   socket.binaryType = 'arraybuffer';
 
   if (mode instanceof Object) {
@@ -97,11 +105,19 @@ function webSocketPullStream (socket, mode) {
 
   function source () {
     var s = src();
+    var coaxial = multi(s);
+    s = coaxial.channel(1)
+    s.cmds = coaxial.channel(0)
     s.pause = pause;
     s.resume = resume;
     s.socket = socket;
     s.Funnel = source.Funnel;
     s.Tunnel = source.Tunnel;
+    
+    s.__proto__ = coaxial;
+
+    coaxial.demux()
+
     return s;
   }
 

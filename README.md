@@ -452,3 +452,32 @@ With thanks to
 [canisuse.com - Typed Arrays]: http://caniuse.com/#search=TypedArray
 [StringView]: https://developer.mozilla.org/en-US/Add-ons/Code_snippets/StringView
 
+
+
+
+/**
+ * mux channels
+ * 
+ * 0 command channel
+ * 1..N data channel
+ *
+ * If only 1 data channel then 
+ * wsps(socket).pipe => will pipe channel 1's data
+ *
+ * If 2 or more data channels then 
+ * we use
+ *
+ * wsps(socket).channel(1).pipe 
+ * wsps(socket).channel(2).pipe
+ *
+ * etc.
+ *
+ * In this scenario the main pipe will
+ * be the unmuxxed data, and shouldn't
+ * be used directly (instead should be
+ * triggered via wsps(socket).demux())
+ *
+ * In a one data channel situation
+ * demux should be triggered automatically
+ * 
+ */

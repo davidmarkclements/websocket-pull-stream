@@ -1,0 +1,54 @@
+THUS FAR
+
+we have multiplexed streams coming *in* 
+to the server
+
+only the command channel is being used
+for data in
+
+expose an api for using the data channel (actually this should just work when I pipe to wsps(socket) from the browser <- make that work)
+
+expose an api for using multiple channels
+
+TODO
+
+how can we pipe to dataSink.mux.channel(1) by piping
+to dataSink when we need to pipe to dataSink itself
+in order to pipe a source accross the wire -- ...
+... piping to a mux shouldn't demux this site of the wire,
+should be the other side
+
+need to make the RPC thing work again
+
+unify the api
+
+tidy stuff up
+
+-- do we *need* to refactor client to so
+messages are in stream? I don't think so, 
+since we're able to just prefix a 0 code point
+
+think about converting messages to binary
+
+set up multiplexed incoming browser streams
+(should this be an optional seperate build?)
+
+create a way to do out streams from the client
+(e.g. instead of manually doing socket.send(String.fromCharCode(0) + 'meow'))
+
+the message and primary data channels are fixed at
+0 and 1, we don't need to involve plex etc for that
+
+we do need to provide a consistent api however, 
+so it will still need to be included
+
+should all this additional stuff be a seperate module?
+if so breaking stuff apart at this stage would be tricky,
+maybe better to fork and call websocket-pull-stream to
+"moral ancestor" or something
+
+pull-core has unneccessary code - how do we deal with that?
+pull-core using the arguments object, this is non optimal
+but then again, it's not hot code, just init 
+
+code
