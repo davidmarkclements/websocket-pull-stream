@@ -1,23 +1,28 @@
 var wsps = require('../../index.js')
 var WebSocket = require('ws')
 var ws = new WebSocket('ws://localhost:8081')
-var src = wsps(ws)();
+var duplex = wsps(ws)();
 
-var sinka = src.Funnel(function (data) {
-	console.log('a', data);
+var sink = duplex.Funnel(function (data) {
+	console.log( data);
 })()
 
+var then = Date.now();
 
-src.pipe(sinka)
+var source = wsps.Source(function () {
+  return function src(end, cb) {
+    if (end) { return cb(end); }
+    setTimeout(function () {
+      var now = Date.now()
+      var diff = now - then;
+      cb(null, 'from client ' + Math.random() + ' '  + diff);
+      then = now;
+    }, 1000)
+    
+  }
+})()
 
-// src.mux.channel(1).pipe(sinkb);
-
-// src.demux.channel(0).pipe(sink())
-
+source.pipe(duplex)
+duplex.pipe(sink)
 
 
-window.ws = ws;
-window.socket = src.socket
-window.pull = wsps.__proto__
-
-window.duplex = src

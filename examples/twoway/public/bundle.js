@@ -10,26 +10,32 @@ module.exports={
 var wsps = require('../../index.js')
 var WebSocket = require('ws')
 var ws = new WebSocket('ws://localhost:8081')
-var src = wsps(ws)();
+var duplex = wsps(ws)();
 
-var sinka = src.Funnel(function (data) {
-	console.log('a', data);
+var sink = duplex.Funnel(function (data) {
+	console.log( data);
 })()
 
+var then = Date.now();
 
-src.pipe(sinka)
+var source = wsps.Source(function () {
+  return function src(end, cb) {
+    if (end) { return cb(end); }
+    setTimeout(function () {
+      var now = Date.now()
+      var diff = now - then;
+      cb(null, 'from client ' + Math.random() + ' '  + diff);
+      then = now;
+    }, 0)
+    
+  }
+})()
 
-// src.mux.channel(1).pipe(sinkb);
-
-// src.demux.channel(0).pipe(sink())
-
+source.pipe(duplex)
+duplex.pipe(sink)
 
 
-window.ws = ws;
-window.socket = src.socket
-window.pull = wsps.__proto__
 
-window.duplex = src
 },{"../../index.js":3,"ws":15}],3:[function(require,module,exports){
 var duplex = require('./lib/duplex')
 var stps = require('stream-to-pull-stream')
@@ -214,7 +220,6 @@ module.exports = function (socket, binary, multi) {
   //cmdReceiver is a sink, it drives the source stream
   var cmdReciever = pull.Sink(function (read) {
     read(0, function next(end, message) {
-      console.log(message)
       cmd(message, read)
     })
   })()
@@ -380,7 +385,7 @@ var pull = require('pull-core')
 var encdec = require('./lib/encdec')
 var devnull = pull.Sink(function(read) {
   read(0, function next(end, d) {
-    console.log('pp', d) 
+    // console.log('pp', d) 
     if (end) {return}
     read(end, next) 
   })
