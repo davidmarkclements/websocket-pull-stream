@@ -7,13 +7,30 @@ module.exports={
   "END": 101
 }
 },{}],2:[function(require,module,exports){
-var wsps = require('../../index.js')
+var wsps = require('../../../index.js')
 var ws = new WebSocket('ws://localhost:8081')
-var src = wsps(ws);
-var sink = wsps.Funnel(console.log.bind(console))
+var duplex = wsps(ws)();
 
-src().pipe(sink());
-},{"../../index.js":3}],3:[function(require,module,exports){
+var sink = wsps.Funnel(function (data) {
+	console.log(data);
+})()
+
+var source = wsps.Source(function () {
+  return function src(end, cb) {
+    if (end) { return cb(end); }
+      cb(null, new Uint8Array(('from client ' + Math.random())
+        .split('')
+        .map(function (c) { 
+          return c.charCodeAt(0) 
+        })));
+  }
+})()
+
+source.pipe(duplex)
+duplex.pipe(sink)
+
+window.socket = ws;
+},{"../../../index.js":3}],3:[function(require,module,exports){
 var pull = require('pull-core')
 var plex = require('pull-plex')
 var utils = require('./lib/utils');
@@ -96,7 +113,7 @@ function webSocketPullStream (socket, opts) {
   multi(bridge)
 
 
-  duplex = multi.channel(1);
+  duplex = waitReady.pipe(multi.channel(1));
   duplex.demux = coaxial;
   duplex.mux = multi
 
@@ -108,8 +125,9 @@ function webSocketPullStream (socket, opts) {
       .pipe(stream)
   }
 
-  duplex.Tunnel = Tunnel;
-
+  webSocketPullStream.Tunnel = 
+    duplex.Tunnel = Tunnel;
+    
   webSocketPullStream.Funnel = 
     duplex.Funnel = Funnel;
 
@@ -117,13 +135,8 @@ function webSocketPullStream (socket, opts) {
 
 }
 
-webSocketPullStream.Tunnel = Tunnel;
-webSocketPullStream.Funnel = function () {
-  throw 'funnels are only available after instantiation';
-}
-
 function Tunnel (fn) {
-  return encase(pull.Through(function (read) {
+  return pull.Through(function (read) {
     return function (end, cb) {
       read(null, function (end, data) {
         var mutation;
@@ -137,7 +150,7 @@ function Tunnel (fn) {
         })
       })
     }
-  })())
+  })
 }
 
 function makeFunnel(pullMode) {

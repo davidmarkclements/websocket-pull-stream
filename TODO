@@ -1,29 +1,15 @@
-THUS FAR
-
-we have multiplexed streams coming *in* 
-to the server
-
-only the command channel is being used
-for data in
-
-expose an api for using the data channel (actually this should just work when I pipe to wsps(socket) from the browser <- make that work)
-
-expose an api for using multiple channels
-
 TODO
 
+convert commands to binary
 
-unify the api
+does "binary" need to be an option, or is it
+just detectable, if we socket.send an array buffer
+(or typed array) will it come out as a buffer the other end? 
 
+sort out two way binary
 
-think about converting messages to binary
+rewrite readme
 
-set up multiplexed incoming browser streams
-(should this be an optional seperate build?)
+is Gunnel neccessary (... no)
 
-
-pull-core has unneccessary code - how do we deal with that?
-pull-core using the arguments object, this is non optimal
-but then again, it's not hot code, just init 
-
-code
+try to reduce filesize (without losing readability)

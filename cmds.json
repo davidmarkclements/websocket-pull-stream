@@ -1,7 +1,7 @@
 {
-  "READ": "read",
-  "FLOW": "flow",
-  "PAUSE": "pause",
-  "RESUME": "resume",
-  "END": "end"
+  "READ": 114,
+  "FLOW": 102,
+  "PAUSE": 112,
+  "RESUME": 117,
+  "END": 101
 }

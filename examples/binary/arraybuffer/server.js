@@ -6,11 +6,11 @@ wss.on('connection', function(ws) {
 	var source = wsps.Source(function () {
 	  return function src(end, cb) {
 	    if (end) { return cb(end); }
-		  cb(null, Math.random());  
+		  cb(null, Buffer(Math.random()+''));
 	  }
 	})
 
-	var sink = wsps(ws, 'binary');
+	var sink = wsps(ws);
 
 	source().pipe(sink())
 

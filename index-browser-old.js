@@ -10,7 +10,6 @@ Object.keys(cmd).forEach(function (k) {
   cmd[k] = String.fromCharCode(0) + cmd[k];
 })
 
-
 module.exports = webSocketPullStream
 module.exports.__proto__ = pull
 

@@ -1,25 +1,18 @@
 var WebSocketServer = require('ws').Server;
 var wss = new WebSocketServer({port: 8081, origin: '*'})
-var wsps = require('../../index.js')
+var wsps = require('../../../index.js')
 
 wss.on('connection', function(ws) {
   var duplex = wsps(ws)();
-  var then = Date.now();
 
   var source = wsps.Source(function () {
     return function src(end, cb) {
       if (end) { return cb(end); }
-      setTimeout(function () {
-        var now = Date.now()
-        var diff = now - then;
-        cb(null, 'from server ' + Math.random() + ' '  + diff);
-        then = now;
-      }, 1000)
-      
+      cb(null, 'from server ' + Math.random());
     }
   })()
 
-  var sink = duplex.Funnel(function (data) {
+  var sink = wsps.Funnel(function (data) {
     console.log(data);
   })()
 

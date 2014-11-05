@@ -24,7 +24,9 @@
     "pull-stream": "^2.26.0",
     "stream-to-pull-stream": "^1.6.0"
   },
-
+  "browser": {
+    "./lib/utils.js": "./lib/utils-browser.js"
+  },
   "devDependencies": {
     "random-stream": "0.0.4",
     "ws": "^0.4.32"

@@ -5,7 +5,7 @@ var src = wsps(ws, 'flow');
 
 var d = ''
 
-var sink = src.Funnel(function (data) {
+var sink = wsps.Funnel(function (data) {
   d += data;
   if (d.length > 10000) { 
     console.log(d); d = ''

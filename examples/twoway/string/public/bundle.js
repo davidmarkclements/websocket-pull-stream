@@ -1,34 +1,41 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 module.exports={
-  "READ": 114,
-  "FLOW": 102,
-  "PAUSE": 112,
-  "RESUME": 117,
-  "END": 101
+  "READ": "r",
+  "FLOW": "f",
+  "PAUSE": "p",
+  "RESUME": "r",
+  "END": "e"
 }
 },{}],2:[function(require,module,exports){
 var wsps = require('../../index.js')
 var ws = new WebSocket('ws://localhost:8081')
-var src = wsps(ws);
-var sink = wsps.Funnel(console.log.bind(console))
+var duplex = wsps(ws, {type: 'binary'})();
 
-src().pipe(sink());
+var sink = duplex.Funnel(function (data) {
+	console.log(data);
+})()
+
+var source = wsps.Source(function () {
+  return function src(end, cb) {
+    if (end) { return cb(end); }
+      cb(null, 'from client ' + Math.random());
+  }
+})()
+
+source.pipe(duplex)
+duplex.pipe(sink)
 },{"../../index.js":3}],3:[function(require,module,exports){
 var pull = require('pull-core')
 var plex = require('pull-plex')
 var utils = require('./lib/utils');
 var cmd = require('./cmds.json')
-var cmdKeys = Object.keys(cmd) 
-var cmds = cmdKeys.map(function(c) {
+var cmds = Object.keys(cmd).map(function(c) {
   return cmd[c]; 
 })
-var encCmds = cmdKeys.reduce(function (o, k) {
-  o[k] = [0, cmd[k]];
-  return o;
-}, {})
 var multi = plex()
 var noop = utils.noop;
 var wrap = utils.wrap;
+var unwrap = utils.unwrap;
 var encase = utils.encase;
 var facade = utils.facade;
 var defaults = utils.defaults;
@@ -44,7 +51,7 @@ function webSocketPullStream (socket, opts) {
   var pullMode = opts.mode === 'flow';
   var View = opts.View;
   var Funnel = makeFunnel(pullMode)
-  var command = makeCommandHandler(View)
+  var command = makeCommandHandler()
   var source = pull.Source(function () {
     return function src(end, cb) {
       if (src.ran) { return; } 
@@ -53,12 +60,12 @@ function webSocketPullStream (socket, opts) {
       socket.on('message', next)
     }
   })()
-  var bridge = pull.Sink(function (read) {
+  var dataBridge = pull.Sink(function (read) {
     read(null, function next(end, data) {
       if (end) return;
       if (socket.readyState !== 1)
         return read(Error('Socket closed'), next)
-      socket.send(data)
+      socket.send(wrap(data, binary, View))
       command.pull = function () {
         read(0, next)
       }
@@ -80,10 +87,10 @@ function webSocketPullStream (socket, opts) {
       return command(msg)
   })()
   var readRequester = Tunnel(function () {
-    socket.send(new View(encCmds.READ))
+    socket.send(String.fromCharCode(0) + cmd.READ)
   })()
-  var wrapper = Tunnel(function (data) {
-    return wrap(data, View);
+  var unwrapper = Tunnel(function (data) {
+    return unwrap(data, View);
   })()
 
   var coaxial = multi(source)
@@ -93,10 +100,10 @@ function webSocketPullStream (socket, opts) {
   coaxial.demux()
 
   multi(noop) //conceptual placeholder for command stream
-  multi(bridge)
+  multi(dataBridge)
 
 
-  duplex = multi.channel(1);
+  duplex = waitReady.pipe(multi.channel(1));
   duplex.demux = coaxial;
   duplex.mux = multi
 
@@ -104,26 +111,22 @@ function webSocketPullStream (socket, opts) {
     stream = readRequester.pipe(stream)
     return coaxial
       .channel(1)
-      .pipe(wrapper)
+      .pipe(unwrapper)
       .pipe(stream)
   }
 
-  duplex.Tunnel = Tunnel;
-
-  webSocketPullStream.Funnel = 
-    duplex.Funnel = Funnel;
+  module.exports.Tunnel = duplex.Tunnel = Tunnel;
+  module.exports.Funnel = duplex.Funnel = Funnel;
+  module.exports.Gunnel = duplex.Gunnel = Gunnel;
 
   return encase(duplex);
 
 }
 
-webSocketPullStream.Tunnel = Tunnel;
-webSocketPullStream.Funnel = function () {
-  throw 'funnels are only available after instantiation';
-}
+
 
 function Tunnel (fn) {
-  return encase(pull.Through(function (read) {
+  return pull.Through(function (read) {
     return function (end, cb) {
       read(null, function (end, data) {
         var mutation;
@@ -137,9 +140,19 @@ function Tunnel (fn) {
         })
       })
     }
-  })())
+  })
 }
 
+function Gunnel(fn) {
+  return pull.Source(function () {
+    return function (end, cb) {
+      var output = fn(cb);
+      var end = output === true;
+      if (end) { output === undefined;}
+      cb(end, output)
+    };
+  })
+}
 function makeFunnel(pullMode) {
   return function Funnel(fn) {
     return pull.Sink(function (read) {
@@ -164,30 +177,31 @@ function continuation(fn) {
   }
 }
 
-function makeCommandHandler(View) {
+function makeCommandHandler() {
   function cmd(message, read) {
-    message = (new View(message))[0];
-    if (!~cmds.indexOf(message)) return;
-    if (state(message).paused) return;
-    if (message === cmd.END) return cmd.END;
-    
-    if (message === cmd.RESUME && state.was.flowing) {
-      state.was.flowing = false;
-      message = cmd.FLOW;
-    }
+      if (!message.indexOf(cmds)) {return;}
+      if (state(message).paused) {return;}
+          
+      if (message === cmd.END) {
+        return cmd.END;
+      }
+      if (message === cmd.RESUME && state.was.flowing) {
+        state.was.flowing = null;
+        message = cmd.FLOW;
+      }
 
-    cmd.pull()
+      cmd.pull()
 
-    if (message !== cmd.FLOW) return;
+      if (message === cmd.FLOW) {
+        if (state(message).paused) {
+          state.was.flowing = true;
+          return;
+        }
+        //tell the data sink to keep on
+        //reading instead of waiting
+        //for notification
+      }
 
-    if (state(message).paused) {
-      state.was.flowing = true;
-      return;
-    }
-    //tell the data sink to keep on
-    //reading instead of waiting
-    //for notification
-    
   }
 
   cmd.pull = noop;
@@ -207,13 +221,17 @@ function state(message) {
 
 },{"./cmds.json":1,"./lib/utils":4,"pull-core":5,"pull-plex":6}],4:[function(require,module,exports){
 function noop(){}
-function wrap(data, View) {
+function wrap(data, binary) {
+  console.debug(data, binary)  
+  return data;
+}
+function unwrap(data, View) {
   return typeof data === 'string' ? 
     data : 
     new View(data);
 }
 function encase(duplex) {
-  return function stream() { return duplex; };
+    return function stream() { return duplex; };
 }
 function facade(socket) {
   socket.binaryType = 'arraybuffer';
@@ -235,6 +253,7 @@ function defaults(opts) {
 module.exports = {
   noop: noop,
   wrap: wrap,
+  unwrap: unwrap,
   encase: encase,
   facade: facade,
   defaults: defaults
@@ -470,7 +489,7 @@ module.exports = function(data, chan) {
     return string.apply(0, arguments);
   }
 
-  data = new Uint8Array(data.buffer || data);
+  data = data.buffer || data;
 
   if (arguments.length > 1) {
       viSize = varint.encodingLength(chan);
@@ -481,8 +500,8 @@ module.exports = function(data, chan) {
   }
     
   return {
-    chan: varint.decode(data),
-    data: data.buffer.slice(varint.decode.bytes)
+    chan: varint.decode(new Uint8Array(data)),
+    data: data.slice(varint.decode.bytes)
   }
 
 }
