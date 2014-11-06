@@ -14,7 +14,8 @@
     "streams",
     "realtime",
     "pull-stream",
-    "pull"
+    "pull",
+    "websocket-pull-stream"
   ],
   "author": "David Mark Clements",
   "license": "ISC",
