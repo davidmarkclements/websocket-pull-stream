@@ -24,7 +24,6 @@ function webSocketPullStream (socket, opts) {
   facade(socket);
 
   opts = defaults(opts || {})
-  var binary = opts.type === 'binary';
   var pullMode = opts.mode === 'flow';
   var View = opts.View;
   var Funnel = makeFunnel(pullMode)
@@ -69,6 +68,21 @@ function webSocketPullStream (socket, opts) {
   var wrapper = Tunnel(function (data) {
     return wrap(data, View);
   })()
+  var json = {
+    stringify: Tunnel(function (data) {
+      return data && 
+        (data.constructor === Object || Array.isArray(data)) ?
+          JSON.stringify(data) :
+          data;
+    })(),
+    parse: Tunnel(function (data, cb) {
+      try {
+        cb(null, JSON.parse(data))
+      } catch (e) {
+        cb(e)         
+      }
+    })()
+  }
 
   var coaxial = multi(source)
   var duplex;
@@ -76,13 +90,15 @@ function webSocketPullStream (socket, opts) {
   coaxial.channel(0).pipe(cmdReciever)
   coaxial.demux()
 
-  multi(noop) //conceptual placeholder for command stream
+  multi(noop /* command stream */)
+  multi(bridge)
   multi(bridge)
 
+  duplex = multi.channel(1)
+  encase(multi.channel(2))
 
-  duplex = multi.channel(1);
-  duplex.demux = coaxial;
-  duplex.mux = multi
+  duplex.objects = json.stringify.pipe(multi.channel(2))
+  duplex.data = duplex.objects.data = duplex;
 
   duplex.pipe = function (stream) {
     stream = readRequester.pipe(stream)
@@ -92,19 +108,26 @@ function webSocketPullStream (socket, opts) {
       .pipe(stream)
   }
 
-  duplex.Tunnel = Tunnel;
+  duplex.objects.pipe = function (stream) {
+    stream = readRequester.pipe(stream)
+    return coaxial
+      .channel(2)
+      .pipe(json.parse)
+      .pipe(stream)
+  }
 
-  webSocketPullStream.Funnel = 
-    duplex.Funnel = Funnel;
+  duplex.demux = coaxial;
+  duplex.mux = multi
+
+
+  webSocketPullStream.Funnel = Funnel;
 
   return encase(duplex);
 
 }
 
 webSocketPullStream.Tunnel = Tunnel;
-webSocketPullStream.Funnel = function () {
-  throw 'funnels are only available after instantiation';
-}
+// webSocketPullStream.Funnel = noop;
 
 function Tunnel (fn) {
   return encase(pull.Through(function (read) {
@@ -116,7 +139,7 @@ function Tunnel (fn) {
           cb(end, typeof mutation !== 'undefined' ? mutation : data)
           return;
         }
-        fn(data, function (mutation) {
+        fn(data, function (end, mutation) {
           cb(end, typeof mutation !== 'undefined' ? mutation : data)
         })
       })

@@ -1,0 +1,34 @@
+{
+  "name": "websocket-pull-stream",
+  "version": "1.2.6",
+  "description": "",
+  "main": "index.js",
+  "repository": "https://github.com/davidmarkclements/websocket-pull-stream",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "websocket",
+    "websockets",
+    "stream",
+    "streams",
+    "realtime",
+    "pull-stream",
+    "pull"
+  ],
+  "author": "David Mark Clements",
+  "license": "ISC",
+  "dependencies": {
+    "pull-core": "^1.0.0",
+    "pull-plex": "^1.0.2",
+    "pull-stream": "^2.26.0",
+    "stream-to-pull-stream": "^1.6.0"
+  },
+  "browser": {
+    "./lib/utils.js": "./lib/utils-browser.js"
+  },
+  "devDependencies": {
+    "random-stream": "0.0.4",
+    "ws": "^0.4.32"
+  }
+}
