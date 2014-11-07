@@ -69,6 +69,7 @@ function webSocketPullStream (socket, opts) {
       if (end) return;
       if (socket.readyState !== 1)
         return read(Error('Socket closed'), next)
+
       socket.send(data)
       if (flow) return setImmediate(read, 0, next)
       command.pull = function () {
@@ -123,42 +124,52 @@ function webSocketPullStream (socket, opts) {
   multi(bridge)
   multi(bridge)
 
-  duplex = waitReady().pipe(multi.channel(1))
+  duplex = waitReady()
+    .pipe(Tunnel(function (data) {
+      return typeof data === 'number' ? data+'' : data;
+    })())
+    .pipe(multi.channel(1))
+
   duplex.objects = json
     .stringify
     .pipe(encase(waitReady()
       .pipe(multi.channel(2))
     )())
 
-  duplex.data = duplex.objects.data = duplex;
+  duplex.source = coaxial
+    .channel(1)
+    .pipe(wrapper)
+    .pipe(readRequester)
 
-  duplex.pipe = function (stream) {
-    stream = readRequester.pipe(stream)
+  duplex.objects.source = coaxial
+    .channel(2)
+    .pipe(json.parse)
+    .pipe(readRequester)
 
-    return coaxial
-      .channel(1)
-      .pipe(wrapper)
-      .pipe(stream)
-  }
+  duplex.sink = duplex.data = duplex.objects.data = duplex;
 
-  duplex.objects.pipe = function (stream) {
-    stream = readRequester.pipe(stream)
+  duplex.objects.sink = duplex.objects;
 
-    return coaxial
-      .channel(2)
-      .pipe(json.parse)
-      .pipe(stream)
-  }
+  duplex.pipe = pipeFromThisSource;
+
+  duplex.objects.pipe = pipeFromThisSource;
 
   duplex.demux = coaxial;
-  duplex.mux = multi
+  duplex.mux = multi;
+
+  multi.offset(3); //set multiplexer offset
+                  //thus making channels 0-2 "private"
+
 
   return encase(duplex);
-
 }
 
 webSocketPullStream.Tunnel = Tunnel;
 webSocketPullStream.Funnel = Funnel;
+
+function pipeFromThisSource(stream) {
+  return this.source.pipe(stream)
+}
 
 function Tunnel (fn) {
   return encase(pull.Through(function (read) {
@@ -393,26 +404,28 @@ var mux = pull.Through(function (read, stream, index) {
   return through
 })
 
-var demux = pull.Through(function (read, stream, channels) {
-  function demux(end, cb) {
+var demux = pull.Through(function (read, stream, channels, offset) {
+  function coax(end, cb) {
     if (end) {return;}
     read(0, function (end, data) {
       if (end) {return;}
       var decoded = encdec(data)
       var chan = decoded.chan
-      channels[chan] = demux.channel(chan) 
+      chan -= offset.by;
+      channels[chan] = coax.channel(chan) 
       channels[chan].next(decoded.data)
       cb(end, data)
     })
   }
 
-  demux.channels = channels;
-  demux.channel =  function (chan) {
+  coax.channels = channels;
+  coax.channel =  function (chan) {
+    chan += offset.by;
     return channels[chan] || 
       (channels[chan] = recieverChannel())
   }
 
-  return demux;
+  return coax;
 })
 
 function remover(channel, channels) {
@@ -433,7 +446,7 @@ module.exports = function plex() {
     var ix, channel;
 
     if (stream.type === 'Source') {
-      stream = stream.pipe(demux(stream, demuxxing));
+      stream = stream.pipe(demux(stream, demuxxing, offset));
       stream.demux = function demux() { 
         return (demux.ed = demux.ed || stream.pipe(devnull())); 
       }
@@ -451,13 +464,21 @@ module.exports = function plex() {
   multi.channels = channels;
 
   multi.channel = function (chan) { 
-    return channels[chan];
+    return channels[chan + offset.by];
   }
+
+  multi.offset = offset
+
+  offset.by = 0
+  function offset(n) {
+    offset.by = n;
+  }
+
 
   return multi;
 
 }
-},{"./lib/encdec":7,"pull-core":5}],7:[function(require,module,exports){
+},{"./lib/encdec":7,"pull-core":9}],7:[function(require,module,exports){
 var string = require('./encdec-string')
 var varint = require('varint')
 
@@ -483,11 +504,12 @@ module.exports = function(data, chan) {
   }
 
 }
-},{"./encdec-string":8,"varint":11}],8:[function(require,module,exports){
+},{"./encdec-string":8,"varint":12}],8:[function(require,module,exports){
 var varint = require('varint');
 var FILL = String.fromCharCode(128);
 
 module.exports = function (data, chan) {
+  
   if (arguments.length > 1)
     return varint.encode(chan).map(function (n) {
       return String.fromCharCode(n);
@@ -505,7 +527,9 @@ module.exports = function (data, chan) {
     data: data.slice(varint.decode.bytes)
   }
 }
-},{"varint":11}],9:[function(require,module,exports){
+},{"varint":12}],9:[function(require,module,exports){
+module.exports=require(5)
+},{}],10:[function(require,module,exports){
 module.exports = read
 
 var MSB = 0x80
@@ -536,7 +560,7 @@ function read(buf, offset) {
   return res
 }
 
-},{}],10:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 module.exports = encode
 
 var MSB = 0x80
@@ -564,14 +588,14 @@ function encode(num, out, offset) {
   return out
 }
 
-},{}],11:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 module.exports = {
     encode: require('./encode.js')
   , decode: require('./decode.js')
   , encodingLength: require('./length.js')
 }
 
-},{"./decode.js":9,"./encode.js":10,"./length.js":12}],12:[function(require,module,exports){
+},{"./decode.js":10,"./encode.js":11,"./length.js":13}],13:[function(require,module,exports){
 
 var N1 = Math.pow(2,  7)
 var N2 = Math.pow(2, 14)
