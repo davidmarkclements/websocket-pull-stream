@@ -4,35 +4,18 @@ module.exports={
   "END": 101
 }
 },{}],2:[function(require,module,exports){
-var wsps = require('../../index.js')
+var wsps = require('../../../index.js')
 var ws = new WebSocket('ws://localhost:8081')
-var src = wsps(ws);
+var src = wsps(ws, {View: DataView})();
 
-var sink = wsps.Funnel(function (data) {
-	console.log('final', data);
+var sink = src.Funnel(function (data) {
+	console.log(data.constructor.name, data);
 })
 
-var throughA = wsps.Tunnel(function (data) {
-	console.debug('initial', data)
-	return data * 100;
-})
-
-var throughB = wsps.Tunnel(function (data) {
-	console.info('intermediate', data)
-})
-
-var throughC = wsps.Tunnel(function (data, cb) {
-	cb(data / 2)
-})
-
-src()
-  .pipe(throughA())
-  .pipe(throughB())
-  .pipe(throughC())
-  .pipe(sink());
+src.pipe(sink());
 
 
-},{"../../index.js":3}],3:[function(require,module,exports){
+},{"../../../index.js":3}],3:[function(require,module,exports){
 var pull = require('pull-core')
 var plex = require('pull-plex')
 var utils = require('./lib/utils');

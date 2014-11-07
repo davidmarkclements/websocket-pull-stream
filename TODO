@@ -1,15 +1,5 @@
 TODO
 
-convert commands to binary
-
-does "binary" need to be an option, or is it
-just detectable, if we socket.send an array buffer
-(or typed array) will it come out as a buffer the other end? 
-
-sort out two way binary
-
 rewrite readme
 
-is Gunnel neccessary (... no)
-
-try to reduce filesize (without losing readability)
+node compat *from* wsps duplex

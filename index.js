@@ -20,13 +20,21 @@ var defaults = utils.defaults;
 module.exports = webSocketPullStream
 module.exports.__proto__ = require('pull-core');
 
+if (typeof setImmediate === 'undefined') {
+  setImmediate = function () {
+    var args = [].slice.apply(arguments);
+    args.splice(1, 0, 0)
+    setTimeout.apply(0, args)
+  }
+}
+
+
 function webSocketPullStream (socket, opts) {
   facade(socket);
 
   opts = defaults(opts || {})
-  var pullMode = opts.mode === 'flow';
+  var flow = opts.mode === 'flow';
   var View = opts.View;
-  var Funnel = makeFunnel(pullMode)
   var command = makeCommandHandler(View)
   var source = pull.Source(function () {
     return function src(end, cb) {
@@ -42,6 +50,7 @@ function webSocketPullStream (socket, opts) {
       if (socket.readyState !== 1)
         return read(Error('Socket closed'), next)
       socket.send(data)
+      if (flow) return setImmediate(read, 0, next)
       command.pull = function () {
         read(0, next)
       }
@@ -53,17 +62,17 @@ function webSocketPullStream (socket, opts) {
         return socket.on('open', function () { 
           src(end, cb)
         })
-
+      
       read(null, function (end, data) {
         read(end, cb)
       })
     }
-  })()
+  })
   var cmdReciever = Funnel(function (msg) {
       return command(msg)
   })()
   var readRequester = Tunnel(function () {
-    socket.send(new View(encCmds.READ))
+    if (!flow) socket.send(new View(encCmds.READ))
   })()
   var wrapper = Tunnel(function (data) {
     return wrap(data, View);
@@ -94,14 +103,18 @@ function webSocketPullStream (socket, opts) {
   multi(bridge)
   multi(bridge)
 
-  duplex = multi.channel(1)
-  encase(multi.channel(2))
+  duplex = waitReady().pipe(multi.channel(1))
+  duplex.objects = json
+    .stringify
+    .pipe(encase(waitReady()
+      .pipe(multi.channel(2))
+    )())
 
-  duplex.objects = json.stringify.pipe(multi.channel(2))
   duplex.data = duplex.objects.data = duplex;
 
   duplex.pipe = function (stream) {
     stream = readRequester.pipe(stream)
+
     return coaxial
       .channel(1)
       .pipe(wrapper)
@@ -110,6 +123,7 @@ function webSocketPullStream (socket, opts) {
 
   duplex.objects.pipe = function (stream) {
     stream = readRequester.pipe(stream)
+
     return coaxial
       .channel(2)
       .pipe(json.parse)
@@ -119,15 +133,12 @@ function webSocketPullStream (socket, opts) {
   duplex.demux = coaxial;
   duplex.mux = multi
 
-
-  webSocketPullStream.Funnel = Funnel;
-
   return encase(duplex);
 
 }
 
 webSocketPullStream.Tunnel = Tunnel;
-// webSocketPullStream.Funnel = noop;
+webSocketPullStream.Funnel = Funnel;
 
 function Tunnel (fn) {
   return encase(pull.Through(function (read) {
@@ -147,54 +158,20 @@ function Tunnel (fn) {
   })())
 }
 
-function makeFunnel(pullMode) {
-  return function Funnel(fn) {
-    return pull.Sink(function (read) {
-      read(null, pullMode ? continuation(function (data, next) {
-          read(fn(data) || null, next)
-        }) : continuation(function (data) { 
-          var end = fn(data);
-          if (end) { read(end); }
-        }))
+function Funnel(fn) {
+  return pull.Sink(function (read) {
+    read(null, function (end, data) {
+      if (end || fn(data)) socket.close()      
     })
-  }
-}
-
-function continuation(fn) {
-  return function next(end, data) {
-    if (end) { 
-      // sendCmd(cmd.PAUSE);
-      socket.close();
-      return end;
-    }
-    fn(data, next);
-  }
+  })
 }
 
 function makeCommandHandler(View) {
   function cmd(message, read) {
     message = (new View(message))[0];
     if (!~cmds.indexOf(message)) return;
-    if (state(message).paused) return;
     if (message === cmd.END) return cmd.END;
-    
-    if (message === cmd.RESUME && state.was.flowing) {
-      state.was.flowing = false;
-      message = cmd.FLOW;
-    }
-
     cmd.pull()
-
-    if (message !== cmd.FLOW) return;
-
-    if (state(message).paused) {
-      state.was.flowing = true;
-      return;
-    }
-    //tell the data sink to keep on
-    //reading instead of waiting
-    //for notification
-    
   }
 
   cmd.pull = noop;
@@ -202,12 +179,3 @@ function makeCommandHandler(View) {
   return cmd;
 }
 
-function state(message) {
-  if (message === cmd.PAUSE) {
-    state.paused = true;
-  }
-  if (message === cmd.RESUME) {
-    state.paused = false;
-  }
-  return state;
-}

@@ -1,17 +1,14 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 module.exports={
-  "READ": "r",
-  "FLOW": "f",
-  "PAUSE": "p",
-  "RESUME": "r",
-  "END": "e"
+  "READ": 114,
+  "END": 101
 }
 },{}],2:[function(require,module,exports){
-var wsps = require('../../index.js')
+var wsps = require('../../../index.js')
 var ws = new WebSocket('ws://localhost:8081')
-var duplex = wsps(ws, {type: 'binary'})();
+var duplex = wsps(ws)();
 
-var sink = duplex.Funnel(function (data) {
+var sink = wsps.Funnel(function (data) {
 	console.log(data);
 })()
 
@@ -24,18 +21,22 @@ var source = wsps.Source(function () {
 
 source.pipe(duplex)
 duplex.pipe(sink)
-},{"../../index.js":3}],3:[function(require,module,exports){
+},{"../../../index.js":3}],3:[function(require,module,exports){
 var pull = require('pull-core')
 var plex = require('pull-plex')
 var utils = require('./lib/utils');
 var cmd = require('./cmds.json')
-var cmds = Object.keys(cmd).map(function(c) {
+var cmdKeys = Object.keys(cmd) 
+var cmds = cmdKeys.map(function(c) {
   return cmd[c]; 
 })
+var encCmds = cmdKeys.reduce(function (o, k) {
+  o[k] = [0, cmd[k]];
+  return o;
+}, {})
 var multi = plex()
 var noop = utils.noop;
 var wrap = utils.wrap;
-var unwrap = utils.unwrap;
 var encase = utils.encase;
 var facade = utils.facade;
 var defaults = utils.defaults;
@@ -43,15 +44,22 @@ var defaults = utils.defaults;
 module.exports = webSocketPullStream
 module.exports.__proto__ = require('pull-core');
 
+if (typeof setImmediate === 'undefined') {
+  setImmediate = function () {
+    var args = [].slice.apply(arguments);
+    args.splice(1, 0, 0)
+    setTimeout.apply(0, args)
+  }
+}
+
+
 function webSocketPullStream (socket, opts) {
   facade(socket);
 
   opts = defaults(opts || {})
-  var binary = opts.type === 'binary';
-  var pullMode = opts.mode === 'flow';
+  var flow = opts.mode === 'flow';
   var View = opts.View;
-  var Funnel = makeFunnel(pullMode)
-  var command = makeCommandHandler()
+  var command = makeCommandHandler(View)
   var source = pull.Source(function () {
     return function src(end, cb) {
       if (src.ran) { return; } 
@@ -60,12 +68,13 @@ function webSocketPullStream (socket, opts) {
       socket.on('message', next)
     }
   })()
-  var dataBridge = pull.Sink(function (read) {
+  var bridge = pull.Sink(function (read) {
     read(null, function next(end, data) {
       if (end) return;
       if (socket.readyState !== 1)
         return read(Error('Socket closed'), next)
-      socket.send(wrap(data, binary, View))
+      socket.send(data)
+      if (flow) return setImmediate(read, 0, next)
       command.pull = function () {
         read(0, next)
       }
@@ -77,21 +86,36 @@ function webSocketPullStream (socket, opts) {
         return socket.on('open', function () { 
           src(end, cb)
         })
-
+      
       read(null, function (end, data) {
         read(end, cb)
       })
     }
-  })()
+  })
   var cmdReciever = Funnel(function (msg) {
       return command(msg)
   })()
   var readRequester = Tunnel(function () {
-    socket.send(String.fromCharCode(0) + cmd.READ)
+    if (!flow) socket.send(new View(encCmds.READ))
   })()
-  var unwrapper = Tunnel(function (data) {
-    return unwrap(data, View);
+  var wrapper = Tunnel(function (data) {
+    return wrap(data, View);
   })()
+  var json = {
+    stringify: Tunnel(function (data) {
+      return data && 
+        (data.constructor === Object || Array.isArray(data)) ?
+          JSON.stringify(data) :
+          data;
+    })(),
+    parse: Tunnel(function (data, cb) {
+      try {
+        cb(null, JSON.parse(data))
+      } catch (e) {
+        cb(e)         
+      }
+    })()
+  }
 
   var coaxial = multi(source)
   var duplex;
@@ -99,34 +123,49 @@ function webSocketPullStream (socket, opts) {
   coaxial.channel(0).pipe(cmdReciever)
   coaxial.demux()
 
-  multi(noop) //conceptual placeholder for command stream
-  multi(dataBridge)
+  multi(noop /* command stream */)
+  multi(bridge)
+  multi(bridge)
 
+  duplex = waitReady().pipe(multi.channel(1))
+  duplex.objects = json
+    .stringify
+    .pipe(encase(waitReady()
+      .pipe(multi.channel(2))
+    )())
 
-  duplex = waitReady.pipe(multi.channel(1));
-  duplex.demux = coaxial;
-  duplex.mux = multi
+  duplex.data = duplex.objects.data = duplex;
 
   duplex.pipe = function (stream) {
     stream = readRequester.pipe(stream)
+
     return coaxial
       .channel(1)
-      .pipe(unwrapper)
+      .pipe(wrapper)
       .pipe(stream)
   }
 
-  module.exports.Tunnel = duplex.Tunnel = Tunnel;
-  module.exports.Funnel = duplex.Funnel = Funnel;
-  module.exports.Gunnel = duplex.Gunnel = Gunnel;
+  duplex.objects.pipe = function (stream) {
+    stream = readRequester.pipe(stream)
+
+    return coaxial
+      .channel(2)
+      .pipe(json.parse)
+      .pipe(stream)
+  }
+
+  duplex.demux = coaxial;
+  duplex.mux = multi
 
   return encase(duplex);
 
 }
 
-
+webSocketPullStream.Tunnel = Tunnel;
+webSocketPullStream.Funnel = Funnel;
 
 function Tunnel (fn) {
-  return pull.Through(function (read) {
+  return encase(pull.Through(function (read) {
     return function (end, cb) {
       read(null, function (end, data) {
         var mutation;
@@ -135,73 +174,28 @@ function Tunnel (fn) {
           cb(end, typeof mutation !== 'undefined' ? mutation : data)
           return;
         }
-        fn(data, function (mutation) {
+        fn(data, function (end, mutation) {
           cb(end, typeof mutation !== 'undefined' ? mutation : data)
         })
       })
     }
-  })
+  })())
 }
 
-function Gunnel(fn) {
-  return pull.Source(function () {
-    return function (end, cb) {
-      var output = fn(cb);
-      var end = output === true;
-      if (end) { output === undefined;}
-      cb(end, output)
-    };
-  })
-}
-function makeFunnel(pullMode) {
-  return function Funnel(fn) {
-    return pull.Sink(function (read) {
-      read(null, pullMode ? continuation(function (data, next) {
-          read(fn(data) || null, next)
-        }) : continuation(function (data) { 
-          var end = fn(data);
-          if (end) { read(end); }
-        }))
+function Funnel(fn) {
+  return pull.Sink(function (read) {
+    read(null, function (end, data) {
+      if (end || fn(data)) socket.close()      
     })
-  }
+  })
 }
 
-function continuation(fn) {
-  return function next(end, data) {
-    if (end) { 
-      // sendCmd(cmd.PAUSE);
-      socket.close();
-      return end;
-    }
-    fn(data, next);
-  }
-}
-
-function makeCommandHandler() {
+function makeCommandHandler(View) {
   function cmd(message, read) {
-      if (!message.indexOf(cmds)) {return;}
-      if (state(message).paused) {return;}
-          
-      if (message === cmd.END) {
-        return cmd.END;
-      }
-      if (message === cmd.RESUME && state.was.flowing) {
-        state.was.flowing = null;
-        message = cmd.FLOW;
-      }
-
-      cmd.pull()
-
-      if (message === cmd.FLOW) {
-        if (state(message).paused) {
-          state.was.flowing = true;
-          return;
-        }
-        //tell the data sink to keep on
-        //reading instead of waiting
-        //for notification
-      }
-
+    message = (new View(message))[0];
+    if (!~cmds.indexOf(message)) return;
+    if (message === cmd.END) return cmd.END;
+    cmd.pull()
   }
 
   cmd.pull = noop;
@@ -209,29 +203,18 @@ function makeCommandHandler() {
   return cmd;
 }
 
-function state(message) {
-  if (message === cmd.PAUSE) {
-    state.paused = true;
-  }
-  if (message === cmd.RESUME) {
-    state.paused = false;
-  }
-  return state;
-}
 
 },{"./cmds.json":1,"./lib/utils":4,"pull-core":5,"pull-plex":6}],4:[function(require,module,exports){
 function noop(){}
-function wrap(data, binary) {
-  console.debug(data, binary)  
-  return data;
-}
-function unwrap(data, View) {
+function wrap(data, View) {
   return typeof data === 'string' ? 
     data : 
     new View(data);
 }
 function encase(duplex) {
-    return function stream() { return duplex; };
+  return function stream(mode) { 
+    return mode === Object ? duplex.objects : duplex;
+  }
 }
 function facade(socket) {
   socket.binaryType = 'arraybuffer';
@@ -253,7 +236,6 @@ function defaults(opts) {
 module.exports = {
   noop: noop,
   wrap: wrap,
-  unwrap: unwrap,
   encase: encase,
   facade: facade,
   defaults: defaults
@@ -479,7 +461,7 @@ module.exports = function plex() {
   return multi;
 
 }
-},{"./lib/encdec":7,"pull-core":9}],7:[function(require,module,exports){
+},{"./lib/encdec":7,"pull-core":5}],7:[function(require,module,exports){
 var string = require('./encdec-string')
 var varint = require('varint')
 
@@ -489,7 +471,7 @@ module.exports = function(data, chan) {
     return string.apply(0, arguments);
   }
 
-  data = data.buffer || data;
+  data = new Uint8Array(data.buffer || data);
 
   if (arguments.length > 1) {
       viSize = varint.encodingLength(chan);
@@ -500,12 +482,12 @@ module.exports = function(data, chan) {
   }
     
   return {
-    chan: varint.decode(new Uint8Array(data)),
-    data: data.slice(varint.decode.bytes)
+    chan: varint.decode(data),
+    data: data.buffer.slice(varint.decode.bytes)
   }
 
 }
-},{"./encdec-string":8,"varint":12}],8:[function(require,module,exports){
+},{"./encdec-string":8,"varint":11}],8:[function(require,module,exports){
 var varint = require('varint');
 var FILL = String.fromCharCode(128);
 
@@ -527,9 +509,7 @@ module.exports = function (data, chan) {
     data: data.slice(varint.decode.bytes)
   }
 }
-},{"varint":12}],9:[function(require,module,exports){
-module.exports=require(5)
-},{}],10:[function(require,module,exports){
+},{"varint":11}],9:[function(require,module,exports){
 module.exports = read
 
 var MSB = 0x80
@@ -560,7 +540,7 @@ function read(buf, offset) {
   return res
 }
 
-},{}],11:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 module.exports = encode
 
 var MSB = 0x80
@@ -588,14 +568,14 @@ function encode(num, out, offset) {
   return out
 }
 
-},{}],12:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 module.exports = {
     encode: require('./encode.js')
   , decode: require('./decode.js')
   , encodingLength: require('./length.js')
 }
 
-},{"./decode.js":10,"./encode.js":11,"./length.js":13}],13:[function(require,module,exports){
+},{"./decode.js":9,"./encode.js":10,"./length.js":12}],12:[function(require,module,exports){
 
 var N1 = Math.pow(2,  7)
 var N2 = Math.pow(2, 14)

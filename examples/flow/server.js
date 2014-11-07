@@ -10,7 +10,7 @@ wss.on('connection', function(ws) {
 	  }
 	})
 
-	var sink = wsps(ws);
+	var sink = wsps(ws, {mode: 'flow'});
 
 	source().pipe(sink())
 
