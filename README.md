@@ -423,7 +423,7 @@ tagged on npm as classic:
 npm install websocket-pull-stream@classic  # installs version 1
 ```
 
-For more on classic websocket-pull-stream see the [v1](tree/v1) branch
+For more on classic websocket-pull-stream see the [v1](../../tree/v1) branch
 Readme.
 
 
