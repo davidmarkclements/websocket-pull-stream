@@ -326,7 +326,7 @@ var createRandomStream = wsps.Source(function () {
 var source = createRandomStream()
 ```
 
-See [pull-stream]() docs for more info. 
+See [pull-stream][] docs for more info. 
 
 ## wsps.Sink(reader(read(end, cb)))  => instantiator => sink
 
@@ -360,7 +360,7 @@ is called again, passing in the `next` callback. This
 recursion causes chunks to be continually pulled
 from the read stream - until a truthy value is passed into
 
-See [pull-stream]() docs for more info.
+See [pull-stream][] docs for more info.
 
 
 ## wsps.Through(reader(read) => read(end, cb))  => instantiator => through
@@ -409,7 +409,7 @@ if (conditionA) {
 source.pipe(composedThrough).pipe(sink)
 ```
 
-See [pull-stream]() docs for more info.
+See [pull-stream][] docs for more info.
 
 
 # Classic websocket-pull-stream (v1)
