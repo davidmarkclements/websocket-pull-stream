@@ -52,8 +52,7 @@ $ npm i websocket-pull-stream
 $ echo "require('websocket-pull-stream')" | browserify | uglifyjs -m | wc -c
 7953
 
-$ echo "require('websocket-pull-stream')" | browserify | uglifyjs -m 
-  | gzip | wc -c
+$ echo "require('websocket-pull-stream')" | browserify | uglifyjs -m | gzip | wc -c
 2932
 
 $ npm i websocket-stream
