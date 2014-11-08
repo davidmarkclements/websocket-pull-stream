@@ -19,9 +19,9 @@ var source = wsps.Source(function () {
   }
 })()
 
-source.pipe(duplex)
-duplex.pipe(sink)
+source.pipe(duplex).pipe(sink)
 },{"../../../index.js":3}],3:[function(require,module,exports){
+require('setimmediate-min')();
 var pull = require('pull-core')
 var plex = require('pull-plex')
 var utils = require('./lib/utils');
@@ -34,7 +34,6 @@ var encCmds = cmdKeys.reduce(function (o, k) {
   o[k] = [0, cmd[k]];
   return o;
 }, {})
-var multi = plex()
 var noop = utils.noop;
 var wrap = utils.wrap;
 var encase = utils.encase;
@@ -44,19 +43,12 @@ var defaults = utils.defaults;
 module.exports = webSocketPullStream
 module.exports.__proto__ = require('pull-core');
 
-if (typeof setImmediate === 'undefined') {
-  setImmediate = function () {
-    var args = [].slice.apply(arguments);
-    args.splice(1, 0, 0)
-    setTimeout.apply(0, args)
-  }
-}
-
-
 function webSocketPullStream (socket, opts) {
   facade(socket);
 
   opts = defaults(opts || {})
+
+  var multi = plex()
   var flow = opts.mode === 'flow';
   var View = opts.View;
   var command = makeCommandHandler(View)
@@ -69,17 +61,27 @@ function webSocketPullStream (socket, opts) {
     }
   })()
   var bridge = pull.Sink(function (read) {
-    read(null, function next(end, data) {
-      if (end) return;
-      if (socket.readyState !== 1)
+    function next(end, data) {
+      if (end) {
+        end = command.pull.indexOf(next.r)
+        if (~~end) command.pull.splice(end, 1)
+        return
+      };
+      if (socket.readyState > 1)
         return read(Error('Socket closed'), next)
+      
       socket.send(data)
+
       if (flow) return setImmediate(read, 0, next)
-      command.pull = function () {
-        read(0, next)
-      }
+      next.r = function () { read(end, next) }  
+    }
+    
+    read(null, function (end, data) { 
+      next(end, data) 
+      command.pull.push(next.r)
     })
-  })()
+    
+  })
   var waitReady = pull.Through(function (read) {
     return function src(end, cb) {
       if (socket.readyState !== 1)
@@ -124,20 +126,25 @@ function webSocketPullStream (socket, opts) {
   coaxial.demux()
 
   multi(noop /* command stream */)
-  multi(bridge)
-  multi(bridge)
+  multi(bridge())
+  multi(bridge())
 
-  duplex = waitReady().pipe(multi.channel(1))
-  duplex.source = coaxial
-    .channel(1)
-    .pipe(wrapper)
-    .pipe(readRequester)
+  duplex = waitReady()
+    .pipe(Tunnel(function (data) {
+      return typeof data === 'number' ? data+'' : data;
+    })())
+    .pipe(multi.channel(1))
 
   duplex.objects = json
     .stringify
     .pipe(encase(waitReady()
       .pipe(multi.channel(2))
     )())
+
+  duplex.source = coaxial
+    .channel(1)
+    .pipe(wrapper)
+    .pipe(readRequester)
 
   duplex.objects.source = coaxial
     .channel(2)
@@ -157,10 +164,31 @@ function webSocketPullStream (socket, opts) {
   }
 
   duplex.demux = coaxial;
-  duplex.mux = multi
+  duplex.mux = multi;
+
+  multi.offset(3); //set multiplexer offset
+                  //thus making channels 0-2 "private"
+
+  //overwrite multiplexer channel methods
+  //so that mux/demux channels work seamlessly
+  //over the transport
+  multi.channel = (function (channel) {
+    return function muxChannel(n) {
+      if (!multi.channels[n+3]) multi(bridge())
+      return channel(n)
+    }
+  }(multi.channel))
+
+  coaxial.channel = (function (channel) {
+    return function demuxChannel(n) {
+      var chan = channel(n)
+      var stream = chan.pipe(readRequester);
+      stream.__proto__ = chan;
+      return stream;
+    }
+  }(coaxial.channel)) 
 
   return encase(duplex);
-
 }
 
 webSocketPullStream.Tunnel = Tunnel;
@@ -197,16 +225,16 @@ function makeCommandHandler(View) {
     message = (new View(message))[0];
     if (!~cmds.indexOf(message)) return;
     if (message === cmd.END) return cmd.END;
-    cmd.pull()
+    cmd.pull.forEach(function (fn) {fn()});
   }
 
-  cmd.pull = noop;
+  cmd.pull = [];
 
   return cmd;
 }
 
 
-},{"./cmds.json":1,"./lib/utils":4,"pull-core":5,"pull-plex":6}],4:[function(require,module,exports){
+},{"./cmds.json":1,"./lib/utils":4,"pull-core":5,"pull-plex":6,"setimmediate-min":13}],4:[function(require,module,exports){
 function noop(){}
 function wrap(data, View) {
   return typeof data === 'string' ? 
@@ -272,10 +300,12 @@ function addPipe(read) {
     return read
 
   read.pipe = read.pipe || function (reader) {
-    if('function' != typeof reader)
+    if('function' != typeof reader && 'function' != typeof reader.sink)
       throw new Error('must pipe to reader')
-    return addPipe(reader(read))
+    var pipe = addPipe(reader.sink ? reader.sink(read) : reader(read))
+    return reader.source || pipe;
   }
+  
   read.type = 'Source'
   return read
 }
@@ -399,26 +429,28 @@ var mux = pull.Through(function (read, stream, index) {
   return through
 })
 
-var demux = pull.Through(function (read, stream, channels) {
-  function demux(end, cb) {
+var demux = pull.Through(function (read, stream, channels, offset) {
+  function coax(end, cb) {
     if (end) {return;}
     read(0, function (end, data) {
       if (end) {return;}
       var decoded = encdec(data)
       var chan = decoded.chan
-      channels[chan] = demux.channel(chan) 
+      chan -= offset.by;
+      channels[chan] = coax.channel(chan) 
       channels[chan].next(decoded.data)
       cb(end, data)
     })
   }
 
-  demux.channels = channels;
-  demux.channel =  function (chan) {
+  coax.channels = channels;
+  coax.channel =  function (chan) {
+    chan += offset.by;
     return channels[chan] || 
       (channels[chan] = recieverChannel())
   }
 
-  return demux;
+  return coax;
 })
 
 function remover(channel, channels) {
@@ -439,7 +471,7 @@ module.exports = function plex() {
     var ix, channel;
 
     if (stream.type === 'Source') {
-      stream = stream.pipe(demux(stream, demuxxing));
+      stream = stream.pipe(demux(stream, demuxxing, offset));
       stream.demux = function demux() { 
         return (demux.ed = demux.ed || stream.pipe(devnull())); 
       }
@@ -457,8 +489,16 @@ module.exports = function plex() {
   multi.channels = channels;
 
   multi.channel = function (chan) { 
-    return channels[chan];
+    return channels[chan + offset.by];
   }
+
+  multi.offset = offset
+
+  offset.by = 0
+  function offset(n) {
+    offset.by = n;
+  }
+
 
   return multi;
 
@@ -494,6 +534,7 @@ var varint = require('varint');
 var FILL = String.fromCharCode(128);
 
 module.exports = function (data, chan) {
+  
   if (arguments.length > 1)
     return varint.encode(chan).map(function (n) {
       return String.fromCharCode(n);
@@ -600,4 +641,13 @@ module.exports = function (value) {
   )
 }
 
+},{}],13:[function(require,module,exports){
+var global = (function(){return this}());
+module.exports = function () {
+  global.setImmediate = global.setImmediate || function () {
+    var args = [].slice.apply(arguments);
+    args.splice(1, 0, 0)
+    setTimeout.apply(null, args)
+  }
+}
 },{}]},{},[2])

@@ -13,5 +13,4 @@ var source = wsps.Source(function () {
   }
 })()
 
-source.pipe(duplex)
-duplex.pipe(sink)
+source.pipe(duplex).pipe(sink)

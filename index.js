@@ -20,12 +20,11 @@ var defaults = utils.defaults;
 module.exports = webSocketPullStream
 module.exports.__proto__ = require('pull-core');
 
-
 function webSocketPullStream (socket, opts) {
   facade(socket);
 
   opts = defaults(opts || {})
-  
+
   var multi = plex()
   var flow = opts.mode === 'flow';
   var View = opts.View;
@@ -133,9 +132,13 @@ function webSocketPullStream (socket, opts) {
 
   duplex.objects.sink = duplex.objects;
 
-  duplex.pipe = pipeFromThisSource;
+  duplex.pipe = function (stream) {
+    return duplex.source.pipe(stream)
+  }
 
-  duplex.objects.pipe = pipeFromThisSource;
+  duplex.objects.pipe = function (stream) {
+    return duplex.objects.source.pipe(stream)
+  }
 
   duplex.demux = coaxial;
   duplex.mux = multi;
@@ -167,10 +170,6 @@ function webSocketPullStream (socket, opts) {
 
 webSocketPullStream.Tunnel = Tunnel;
 webSocketPullStream.Funnel = Funnel;
-
-function pipeFromThisSource(stream) {
-  return this.source.pipe(stream)
-}
 
 function Tunnel (fn) {
   return encase(pull.Through(function (read) {
