@@ -13,7 +13,7 @@ npm install websocket-pull-stream
 * Two way (duplex) communication
 * Multiplexer API for multiple streams over one websocket
 
-See [changelog.md](tree/master/changelog.md) for more
+See [changelog.md](changelog.md) for more
 
 # Quick Example
 
@@ -143,7 +143,7 @@ the data from source stream will pipe over the
 transport, and incoming data will be piped into the 
 sink.
 
-See the [twoway](tree/master/examples/twoway) examples for more.
+See the [twoway](examples/twoway) examples for more.
 
 ### Node-stream Congruence
 
@@ -156,7 +156,7 @@ var sink = wsps(websocket)()
 fs.createReadStream(__filename).pipe(sink)
 ```
 
-See [node-stream-compat](tree/master/examples/node-stream-compat) for
+See [node-stream-compat](examples/node-stream-compat) for
 full examples.
 
 ### Object Mode
@@ -208,7 +208,7 @@ var sink = wsps(ws)();
 stringSource.pipe(sink);
 ```
 
-See the [object-mode](tree/master/examples/object-mode) examples
+See the [object-mode](examples/object-mode) examples
 for practical demonstration.
 
 ### Multiplexing
@@ -239,7 +239,7 @@ duplex.demux.channel(0).pipe(sinkA());
 duplex.demux.channel(1).pipe(sinkB());
 ```
 
-See the [multiplexing](tree/master/examples/multiplexing) example
+See the [multiplexing](examples/multiplexing) example
 for practical demonstrations.
 
 ## wsps.Funnel(each(data) => end) => instantiator => sink
@@ -299,7 +299,7 @@ var logThrough = wsps.Tunnel(function (data) {
 })() //<-- instantiate immediately
 ```
 
-See the [tunnel](tree/master/examples/tunnel) example for
+See the [tunnel](examples/tunnel) example for
 a practical demonstration.
 
 See the [pultil][] module for more info on `Tunnel`.
