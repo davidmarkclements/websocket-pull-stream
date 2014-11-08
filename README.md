@@ -3,6 +3,10 @@
 Wrap websockets with pull streams, like websocket-stream
 but much smaller yet more feature rich. 
 
+```sh
+npm i websocket-pull-stream
+```
+
 # New in Version 2
 
 * Object mode streams accross the transport
@@ -406,6 +410,21 @@ source.pipe(composedThrough).pipe(sink)
 ```
 
 See [pull-stream]() docs for more info.
+
+
+# Classic websocket-pull-stream (v1)
+
+Where file size is a high priority, and only one way (server-client)
+communication of string or binary data is required, you may wish
+to use version 1 of websocket-pull-stream, for convenience this is
+tagged on npm as classic:
+
+```
+npm install websocket-pull-stream@classic  # installs version 1
+```
+
+For more on classic websocket-pull-stream see the [v1](tree/v1) branch
+Readme.
 
 
 # Gratitude
