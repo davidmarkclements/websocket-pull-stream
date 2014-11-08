@@ -443,8 +443,7 @@ With thanks to
 [pull-stream]: https://github.com/dominictarr/pull-stream
 [websocket-stream]: https://github.com/maxogden/websocket-stream
 [pultil]: https://github.com/davidmarkclements/pultil
-[pull-plex][]https://npmjs.org/pull-plex
-[]ypedArrays]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays
+[pull-plex]: https://npmjs.org/pull-plex
+[TypedArrays]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays
 [DataView]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
-[canisuse.com - Typed Arrays]: http://caniuse.com/#search=TypedArray
 [StringView]: https://developer.mozilla.org/en-US/Add-ons/Code_snippets/StringView
