@@ -247,7 +247,7 @@ for practical demonstrations.
     * `data` Object | String | [binary]
     * => `end` Boolean | Object | String
   * => `instantiator` Function
-  * => `sink` wsps.Sink
+  * => `sink` Sink
 
 `Funnel` provides a quick and easy way to create sinks.
 
@@ -272,7 +272,7 @@ See the [pultil][] module for more info on `Funnel`.
       `mutation` Object | String | [binary]
     * => `mutation` Object | String | [binary] default = `data`
   * => `instantiator` Function
-  * => `sink` wsps.Sink
+  * => `through` Through
 
 `Tunnel` provides a quick and easy way to create 
 through streams. It can operate in both synchronous 
@@ -313,7 +313,7 @@ See the [pultil][] module for more info on `Tunnel`.
         * `end` Boolean | Object | String
         * `data` Object | String | [binary]
   * => `instantiator` Function
-  * => `source` wsps.Source
+  * => `source` Source
 
 ```
 var createRandomStream = wsps.Source(function () {
@@ -334,7 +334,7 @@ See [pull-stream][] docs for more info.
       * `end` Boolean | Object | String
       * `cb` Function
   * => `instantiator` Function
-  * => `sink` wsps.Sink
+  * => `sink` Sink
 
 ```
 var createLoggerSink = wsps.Sink(function (read) {
@@ -374,7 +374,7 @@ See [pull-stream][] docs for more info.
         * `end` Boolean | Object | String
         * `data` Object | String | [binary]
   * => `instantiator` Function
-  * => `sink` wsps.Through
+  * => `sink` Through
 
 
 The `Through` stream combines both the `Sink` and `Source` APIs,
