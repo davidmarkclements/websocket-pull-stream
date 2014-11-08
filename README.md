@@ -244,7 +244,7 @@ for practical demonstrations.
 ## wsps.Funnel(each(data) => end) => instantiator => sink
   
   * `each` Function
-    * `data` Object | string | <binary>
+    * `data` Object | String | [binary]
     * => `end` Boolean | Object | String
   * => `instantiator` Function
   * => `sink` wsps.Sink
@@ -267,10 +267,10 @@ See the [pultil][] module for more info on `Funnel`.
 ## wsps.Tunnel(each(data, [cb(mutation)]) => [mutation]) => instantiator => through
 
   * `each` Function
-    * `data` Object | string | <binary>
+    * `data` Object | String | [binary]
     * `cb`
-      `mutation` Object | string | <binary>
-    * => `mutation` Object | string | <binary> default = `data`
+      `mutation` Object | String | [binary]
+    * => `mutation` Object | String | [binary] default = `data`
   * => `instantiator` Function
   * => `sink` wsps.Sink
 
@@ -311,7 +311,7 @@ See the [pultil][] module for more info on `Tunnel`.
       * `end` Boolean | Object | String
       * `cb` Function
         * `end` Boolean | Object | String
-        * `data` Object | String | <binary>
+        * `data` Object | String | [binary]
   * => `instantiator` Function
   * => `source` wsps.Source
 
@@ -372,7 +372,7 @@ See [pull-stream][] docs for more info.
       * `end` Boolean | Object | String
       * `cb` Function
         * `end` Boolean | Object | String
-        * `data` Object | String | <binary>
+        * `data` Object | String | [binary]
   * => `instantiator` Function
   * => `sink` wsps.Through
 
