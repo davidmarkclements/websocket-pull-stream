@@ -1,7 +1,7 @@
 # WebSocket Pull Stream
 
 Wrap websockets with pull streams, like websocket-stream
-but much smaller
+but much smaller yet more feature rich. 
 
 # New in Version 2
 
