@@ -357,7 +357,9 @@ the second parameter callback is called `next` (by convention),
 notice how once the data is processed, the `read` callback
 is called again, passing in the `next` callback. This
 recursion causes chunks to be continually pulled
-from the read stream - until a truthy value is passed into
+from the read stream - until a truthy value is passed in
+as the first parameter to next (thus setting `end` to true, 
+and returning early from the function).
 
 See [pull-stream][] docs for more info.
 
