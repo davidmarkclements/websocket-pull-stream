@@ -4,7 +4,7 @@ Wrap websockets with pull streams, like websocket-stream
 but much smaller yet more feature rich. 
 
 ```sh
-npm i websocket-pull-stream
+npm install websocket-pull-stream
 ```
 
 # New in Version 2
