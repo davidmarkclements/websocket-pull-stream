@@ -38,12 +38,11 @@ var defaults = utils.defaults;
 module.exports = webSocketPullStream
 module.exports.__proto__ = require('pull-core');
 
-
 function webSocketPullStream (socket, opts) {
   facade(socket);
 
   opts = defaults(opts || {})
-  
+
   var multi = plex()
   var flow = opts.mode === 'flow';
   var View = opts.View;
@@ -151,9 +150,13 @@ function webSocketPullStream (socket, opts) {
 
   duplex.objects.sink = duplex.objects;
 
-  duplex.pipe = pipeFromThisSource;
+  duplex.pipe = function (stream) {
+    return duplex.source.pipe(stream)
+  }
 
-  duplex.objects.pipe = pipeFromThisSource;
+  duplex.objects.pipe = function (stream) {
+    return duplex.objects.source.pipe(stream)
+  }
 
   duplex.demux = coaxial;
   duplex.mux = multi;
@@ -185,10 +188,6 @@ function webSocketPullStream (socket, opts) {
 
 webSocketPullStream.Tunnel = Tunnel;
 webSocketPullStream.Funnel = Funnel;
-
-function pipeFromThisSource(stream) {
-  return this.source.pipe(stream)
-}
 
 function Tunnel (fn) {
   return encase(pull.Through(function (read) {
@@ -230,7 +229,7 @@ function makeCommandHandler(View) {
 }
 
 
-},{"./cmds.json":1,"./lib/utils":4,"pull-core":5,"pull-plex":6,"setimmediate-min":15}],4:[function(require,module,exports){
+},{"./cmds.json":1,"./lib/utils":4,"pull-core":5,"pull-plex":6,"setimmediate-min":13}],4:[function(require,module,exports){
 function noop(){}
 function wrap(data, View) {
   return typeof data === 'string' ? 
@@ -296,10 +295,12 @@ function addPipe(read) {
     return read
 
   read.pipe = read.pipe || function (reader) {
-    if('function' != typeof reader)
+    if('function' != typeof reader && 'function' != typeof reader.sink)
       throw new Error('must pipe to reader')
-    return addPipe(reader(read))
+    var pipe = addPipe(reader.sink ? reader.sink(read) : reader(read))
+    return reader.source || pipe;
   }
+  
   read.type = 'Source'
   return read
 }
@@ -384,7 +385,6 @@ function (createSink, cb) {
 
 
 },{}],6:[function(require,module,exports){
-require('setimmediate-min')()
 var pull = require('pull-core')
 var encdec = require('./lib/encdec')
 var devnull = pull.Sink(function(read) {
@@ -417,7 +417,7 @@ var mux = pull.Through(function (read, stream, index) {
     if (end) {return;}
     read(0, function (end, data) {
       if (end) {return;}
-      setImmediate(cb, aborted || end, encdec(data, index))
+      cb(aborted || end, encdec(data, index))
     })
   }
   through.abort = function () { aborted = true; }
@@ -434,7 +434,7 @@ var demux = pull.Through(function (read, stream, channels, offset) {
       chan -= offset.by;
       channels[chan] = coax.channel(chan) 
       channels[chan].next(decoded.data)
-      setImmediate(cb, end, data)
+      cb(end, data)
     })
   }
 
@@ -498,7 +498,7 @@ module.exports = function plex() {
   return multi;
 
 }
-},{"./lib/encdec":7,"pull-core":9,"setimmediate-min":10}],7:[function(require,module,exports){
+},{"./lib/encdec":7,"pull-core":5}],7:[function(require,module,exports){
 var string = require('./encdec-string')
 var varint = require('varint')
 
@@ -524,7 +524,7 @@ module.exports = function(data, chan) {
   }
 
 }
-},{"./encdec-string":8,"varint":13}],8:[function(require,module,exports){
+},{"./encdec-string":8,"varint":11}],8:[function(require,module,exports){
 var varint = require('varint');
 var FILL = String.fromCharCode(128);
 
@@ -547,18 +547,7 @@ module.exports = function (data, chan) {
     data: data.slice(varint.decode.bytes)
   }
 }
-},{"varint":13}],9:[function(require,module,exports){
-module.exports=require(5)
-},{}],10:[function(require,module,exports){
-var global = (function(){return this}());
-module.exports = function () {
-  global.setImmediate = global.setImmediate || function () {
-    var args = [].slice.apply(arguments);
-    args.splice(1, 0, 0)
-    setTimeout.apply(null, args)
-  }
-}
-},{}],11:[function(require,module,exports){
+},{"varint":11}],9:[function(require,module,exports){
 module.exports = read
 
 var MSB = 0x80
@@ -589,7 +578,7 @@ function read(buf, offset) {
   return res
 }
 
-},{}],12:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 module.exports = encode
 
 var MSB = 0x80
@@ -617,14 +606,14 @@ function encode(num, out, offset) {
   return out
 }
 
-},{}],13:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 module.exports = {
     encode: require('./encode.js')
   , decode: require('./decode.js')
   , encodingLength: require('./length.js')
 }
 
-},{"./decode.js":11,"./encode.js":12,"./length.js":14}],14:[function(require,module,exports){
+},{"./decode.js":9,"./encode.js":10,"./length.js":12}],12:[function(require,module,exports){
 
 var N1 = Math.pow(2,  7)
 var N2 = Math.pow(2, 14)
@@ -647,6 +636,13 @@ module.exports = function (value) {
   )
 }
 
-},{}],15:[function(require,module,exports){
-module.exports=require(10)
+},{}],13:[function(require,module,exports){
+var global = (function(){return this}());
+module.exports = function () {
+  global.setImmediate = global.setImmediate || function () {
+    var args = [].slice.apply(arguments);
+    args.splice(1, 0, 0)
+    setTimeout.apply(null, args)
+  }
+}
 },{}]},{},[2])
