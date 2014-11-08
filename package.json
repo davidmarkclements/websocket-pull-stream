@@ -1,7 +1,7 @@
 {
   "name": "websocket-pull-stream",
-  "version": "1.2.6-classic",
-  "description": "",
+  "version": "2.0.0",
+  "description": "websockets with pull-streams, like websocket-stream but much leaner",
   "main": "index.js",
   "repository": "https://github.com/davidmarkclements/websocket-pull-stream",
   "scripts": {
@@ -14,19 +14,21 @@
     "streams",
     "realtime",
     "pull-stream",
+    "pull-core",
     "pull",
     "websocket-pull-stream"
   ],
   "author": "David Mark Clements",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "pull-core": "^1.0.0",
-    "pull-plex": "^1.0.2",
-    "pull-stream": "^2.26.0",
+    "pull-plex": "^1.0.7",
+    "pull-stream-to-stream": "^1.3.0",
+    "setimmediate-min": "^1.0.1",
     "stream-to-pull-stream": "^1.6.0"
   },
   "browser": {
-    "./index.js": "./index-browser.js"
+    "./lib/utils.js": "./lib/utils-browser.js"
   },
   "devDependencies": {
     "random-stream": "0.0.4",

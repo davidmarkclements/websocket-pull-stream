@@ -1,5 +1,24 @@
 # Changelog
 
+## v2.0
+
+  * Entire Refactor 
+  * Integrated multiplexor
+  * Two way communication
+  * Two way node compatibility on server
+  * Transparent object mode accross the transport
+  * API changes
+    * Unified API for client/server
+    * no pause/resume - just flow mode, 
+      if flow is too fast, use pull instead :)
+      truth is, in a production scenario flow
+      won't be too fast, CPU (browser) is faster
+      than data travelling over a network (socket) 
+      thus no need for pause/resume
+    * no support for blobs
+      * to convert to a blob use the FileReader API
+
+
 ## v1.2
   * No breaking changes
   * Binary support
