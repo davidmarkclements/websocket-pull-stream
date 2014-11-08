@@ -215,7 +215,7 @@ for practical demonstration.
 
 The reason two way communication and object mode are possible, 
 is because `websocket-pull-stream` is using a multiplexer
-([pull-plex][]). The multiplexer is exposed so it can 
+– [pull-plex][]. The multiplexer is exposed so it can 
 be leveraged at an application level. This means, we can
 send and receive multiple streams accross a single websocket.
 
