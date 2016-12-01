@@ -68,7 +68,7 @@ function webSocketPullStream (socket, binary) {
 
     s.emit = function (type, stream) {
       if (type !== 'pipe') {return;}
-      stps.source(stream).pipe(s)
+      pull(stps.source(stream), s)
     }
     s.Tunnel = Tunnel;
     return s;
